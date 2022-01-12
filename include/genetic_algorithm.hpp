@@ -30,7 +30,7 @@ private:
 
     void selection();
     void crossover();
-    void renew(af::array idxs, af::array row);
+    void renew(af::array row);
     void mutate();
     void fitness_score();
 };
@@ -72,21 +72,23 @@ void GeneticAlgorithm::selection()
 {
     af::array scores = fitness_func(population);
     
-    float pop_best_score = af::max(scores, 0).scalar<float>();
-    af::array pop_best = population(
-        af::where(scores == pop_best_score), af::span, af::span); // max return this
+    af::array pop_best_scores;
+    af::array pop_best_idx;
+    af::max(pop_best_scores, pop_best_idx, scores, 0);
+
+    float pop_best_score = pop_best_scores.scalar<float>();
 
     // normalize scores
     scores -= af::min(scores).scalar<float>();
     scores /= af::sum(scores).scalar<float>();
-    
-    af::array idxs_replace = af::where(
-        scores < af::median(scores).scalar<float>());
 
-    if (!idxs_replace.isempty())
-    {
-        renew(idxs_replace, pop_best(0, af::span, af::span));
-    }
+    // this is stupid, arrayfire doesn't let
+    // me get the first element
+    int idx = af::sum<int>(pop_best_idx(0));
+    
+    af::array pop_best = population(idx,
+        af::span, af::span);
+    renew(pop_best);
 
     if (pop_best_score > best_score)
     {
@@ -115,14 +117,14 @@ void GeneticAlgorithm::crossover()
 }
 
 
-void GeneticAlgorithm::renew(af::array idxs, af::array best)
+void GeneticAlgorithm::renew(af::array best)
 {
-    af::array r = af::randu(idxs.dims(0), dna_size_x, dna_size_y);
-    af::array idxs_replace = r < 0.8f;
+    af::array r = af::randu(pop_size, dna_size_x, dna_size_y);
+    af::array idxs_replace = r < 0.5f;
 
-    population(idxs, af::span, af::span) = 
-        idxs_replace * af::tile(best, idxs.dims(0)) + 
-        (1 - idxs_replace) * population(idxs, af::span, af::span);
+    population = 
+        idxs_replace * af::tile(best, pop_size) + 
+        (1 - idxs_replace) * population;
 }
 
 
