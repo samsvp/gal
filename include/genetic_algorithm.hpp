@@ -24,7 +24,7 @@ private:
     int dna_size_x;
     int dna_size_y;
     int pop_size;
-    float best_score = 0;
+    float best_score = -100000000;
     af::array best;
     // each row is a member
     // number of columns are genes

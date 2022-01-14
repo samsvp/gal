@@ -24,7 +24,7 @@ af::array alphaBlend(const af::array &foreground, const af::array &background, c
 int main()
 {
     Painter::painter("../imgs/example.jpg", "../brushes/1.png");
-    Painter::run();
+    Painter::split_target_image();
 
     int iters = 500;
     int dna_size = 20;
