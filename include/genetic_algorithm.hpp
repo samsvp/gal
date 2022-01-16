@@ -13,8 +13,17 @@ public:
         float mutation_rate, float cross_amount,
         int iters);
     ~GeneticAlgorithm();
+    /*
+     * Runs the algorithm
+     */
     void run();
+    /*
+     * Returns the best population individual
+     */
     af::array get_best();
+    /* 
+     * Returns the best population score
+     */
     float get_best_score();
     float cross_amount;
     float mutation_rate;
@@ -25,16 +34,41 @@ private:
     int dna_size_y;
     int pop_size;
     float best_score = -100000000;
+    /*
+     * Best induvidual of all the generations
+     */
     af::array best;
     // each row is a member
     // number of columns are genes
-    af::array population; 
+    af::array population;
+    /*
+     * Function to compute the fitness score. It must
+     * receive the populationa and return the score for each member.
+     * The algorithm tries to maxime this function
+     */
     af::array (*fitness_func)(af::array);
 
+    /*
+     * Calculates fitness score and renews population
+     */
     void selection();
+    /*
+     * Performs crossover on the population. Each
+     * individual genes are combined with another
+     */
     void crossover();
+    /*
+     * "Breeds" the best specimen(the one with the highst score)
+     * with the rest of the population
+     */
     void renew(af::array row);
+    /*
+     * Mutates the population
+     */
     void mutate();
+    /*
+     * Calculates the fitness score
+     */
     void fitness_score();
 };
 
