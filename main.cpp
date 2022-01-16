@@ -23,8 +23,28 @@ af::array alphaBlend(const af::array &foreground, const af::array &background, c
 
 int main()
 {
-    Painter::painter("../imgs/example.jpg", "../brushes/1.png");
-    Painter::split_target_image();
+    Painter::painter("../imgs/example.jpg", "../brushes/3.png");
+    for (int i=0; i < 10; i++)
+    {
+        Painter::run_split_regions();
+        if (i >= 5)
+            Painter::var_weights = 0;
+    }
+
+
+    af::Window wnd(800, 800, "Preliminary result");
+        while (!wnd.close()) wnd.image(Painter::current_img);
+    
+    af::Window wnd2(Painter::c_weights.dims(0), Painter::c_weights.dims(1), "Weights");
+        while (!wnd2.close()) wnd2.image(Painter::c_weights);
+
+    af::Window wnd3(Painter::target_image.dims(0), Painter::target_image.dims(1), "OG");
+        while (!wnd3.close()) wnd3.image(Painter::target_image);
+    
+
+    af::array mimg = (Painter::current_img * 255).as(u8);
+    af::saveImageNative("../imgs/test1.png", mimg);
+
 
     int iters = 500;
     int dna_size = 20;
@@ -54,34 +74,6 @@ int main()
     // }
 
     //af_print(consts);
-
-    // af::array img = af::constant(0, 900, 900, 4, f32);
-    // af::array target = af::loadImage("../imgs/example.jpg") / 255.f;
-    // std::cout << "Target original dims " << target.dims() << std::endl;
-    
-    // target = af::resize(0.5f, target);
-    // target = af::medfilt2(target, 5, 5);
-    // target = af::resize(0.5f, target);
-    // target = af::medfilt2(target, 5, 5);
-    
-    // std::cout << "Target resized dims " << target.dims() << std::endl;
-
-    // af::array brush1 = af::loadImage("../brushes/1.png", true) / 255.f;
-    // brush1(af::span, af::span, af::seq(3)) += 0.3f;
-    // brush1 = af::medfilt2(brush1, 5, 5);
-    // std::cout << brush1.dims() << std::endl;
-
-    // img(af::seq(150), af::seq(300), af::span) = brush1;
-    // af::array idxs = brush1(af::where(brush1(af::span, af::span, -1) > 0));
-
-    // af::array mask = brush1(af::span, af::span, -1) == 0;
-    // img(af::seq(50, 199), af::seq(100, 399), af::span) = 
-    //     alphaBlend(img(af::seq(50, 199), af::seq(100, 399), af::span), brush1, mask);
-
-    // img(af::seq(300, 449), af::seq(300, 599), af::span) = brush1;
-
-    // af::Window wnd(800, 800, "Window");
-    // while (!wnd.close()) wnd.image(target);
 
     return 0;
 }
