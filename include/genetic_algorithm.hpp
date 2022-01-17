@@ -5,18 +5,24 @@
 #include <arrayfire.h>
 
 
+class Score
+{
+public:
+    virtual af::array fitness_func(af::array)=0;
+};
+
+
 class GeneticAlgorithm
 {
 public:
     GeneticAlgorithm(int pop_size, int dna_size_x,
-        int dna_size_y, af::array (*fitness_func)(af::array), 
-        float mutation_rate, float cross_amount,
-        int iters);
+        int dna_size_y, float mutation_rate, 
+        float cross_amount, int iters);
     ~GeneticAlgorithm();
     /*
      * Runs the algorithm
      */
-    void run();
+    void run(Score& score);
     /*
      * Returns the best population individual
      */
@@ -41,17 +47,14 @@ private:
     // each row is a member
     // number of columns are genes
     af::array population;
+
     /*
+     * Calculates fitness score and renews population
      * Function to compute the fitness score. It must
      * receive the populationa and return the score for each member.
      * The algorithm tries to maxime this function
      */
-    af::array (*fitness_func)(af::array);
-
-    /*
-     * Calculates fitness score and renews population
-     */
-    void selection();
+    void selection(Score& score);
     /*
      * Performs crossover on the population. Each
      * individual genes are combined with another
@@ -74,10 +77,10 @@ private:
 
 
 GeneticAlgorithm::GeneticAlgorithm(int _pop_size, 
-        int dna_size_x, int dna_size_y, af::array (*fitness_func)(af::array), 
-        float mutation_rate, float cross_amount, int iters) :
+        int dna_size_x, int dna_size_y, float mutation_rate, 
+        float cross_amount, int iters) :
             dna_size_x(dna_size_x), dna_size_y(dna_size_y),
-            mutation_rate(mutation_rate), fitness_func(fitness_func),
+            mutation_rate(mutation_rate), 
             cross_amount(cross_amount), iters(iters)
 {
     pop_size = _pop_size % 2 == 0 ? _pop_size : _pop_size + 1;
@@ -94,20 +97,20 @@ GeneticAlgorithm::~GeneticAlgorithm()
 }
 
 
-void GeneticAlgorithm::run()
+void GeneticAlgorithm::run(Score& score)
 {
     for (int i = 0; i < iters; i++)
     {
-        selection();
+        selection(score);
         crossover(); 
         mutate();
     }
 }
 
 
-void GeneticAlgorithm::selection()
+void GeneticAlgorithm::selection(Score& score)
 {
-    af::array scores = fitness_func(population);
+    af::array scores = score.fitness_func(population);
     
     af::array pop_best_scores;
     af::array pop_best_idx;
