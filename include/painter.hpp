@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <random>
 #include <chrono>
 #include <iostream>
@@ -13,8 +14,9 @@ public:
     float var_weights = 1.0f;
 
     Painter(const char *img_path, const char *brush_path,
-        int iters, int dna_size_x, int dna_size_y,
-        int loops=10, int pop_size=100, float var_weights=1.0f);
+        float brush_scale, int iters, int dna_size_x, 
+        int dna_size_y, int loops=10, int pop_size=100,
+        float var_weights=1.0f, bool save_process=false);
     /*
      * Compares the chosen points color with their respectives color on
      * the target image
@@ -37,6 +39,8 @@ private:
     int dna_size_x;
     int dna_size_y;
     int pop_size;
+    bool save_process;
+    int frame_n = 0; // used if save_process is true
     const float PI = 3.14159;
     af::array target_split;
 
@@ -46,10 +50,6 @@ private:
     af::array c_weights;
     af::array current_img;
     af::array img_gradient;
-
-    std::mt19937_64 rng;    
-    // initialize a uniform distribution between 0 and 1
-    std::uniform_real_distribution<double> unif;
 
     /*
      * Adds two images using the alpha channel
@@ -73,20 +73,14 @@ private:
 
 
 Painter::Painter(const char *img_path, const char *brush_path,
-    int iters, int dna_size_x, int dna_size_y,
-    int loops, int pop_size, float var_weights) : 
+    float brush_scale, int iters, int dna_size_x,
+    int dna_size_y, int loops, int pop_size, 
+    float var_weights, bool save_process) : 
         pop_size(pop_size), var_weights(var_weights),
         iters(iters), dna_size_x(dna_size_x), 
-        dna_size_y(dna_size_y), loops(loops)
+        dna_size_y(dna_size_y), loops(loops),
+        save_process(save_process)
 {
-    // initialize the random number generator with time-dependent seed
-    uint64_t timeSeed = std::chrono::high_resolution_clock::now().
-        time_since_epoch().count();
-    std::seed_seq ss {
-        uint32_t(timeSeed & 0xffffffff), uint32_t(timeSeed>>32)
-    };
-    rng.seed(ss);
-
     // downsample
     target_image = af::loadImage(img_path) / 255.f;
     target_image = af::medfilt2(target_image, 5, 5);
@@ -98,15 +92,13 @@ Painter::Painter(const char *img_path, const char *brush_path,
     img_gradient = af::abs(af::atan2(dy, dx) / PI / 2);
 
     // load brush image
-    brush = af::loadImage("../brushes/1.png", true) / 255.f;
+    brush = af::loadImage(brush_path, true) / 255.f;
     brush(af::span, af::span, af::seq(3)) += 0.f;
     brush = af::medfilt2(brush, 5, 5);
     
-    brush = af::resize(0.2f, brush);
+    brush = af::resize(brush_scale, brush);
     std::cout << "brush dims " << brush.dims() << std::endl;
     std::cout << "target image " << target_image.dims() << std::endl;
-
-    unif = std::uniform_real_distribution<double>(0, 1);
 
     // weights calc
     current_img = af::constant(0, target_image.dims(0), 
@@ -167,11 +159,20 @@ af::array Painter::make_image(af::array metainfo,
             //af::tile(metainfo(n, 2), size_x, size_y, 3);
             af::tile(target_image(mid_x, mid_y, 0), size_x, size_y, 3);
 
+        // af::array mask = mbrush(af::span, af::span, -1) >= 0.5f;
         af::array mask = mbrush(af::span, af::span, -1);
-        // af::array mask = mbrush(af::span, af::span, -1);
 
         img(x, y, af::span, af::span) = 
             alpha_blend(mbrush, img(x, y, af::span, af::span), mask);
+
+        if (save_process)
+        {
+            af::array mimg = (img * 255).as(u8);
+            mimg = af::resize(0.5f, mimg);
+            std::string filename = "../imgs/process/" + 
+                std::to_string(frame_n++) + ".png";
+            af::saveImageNative(filename.c_str(), mimg);
+        }
     }
     
     return img;

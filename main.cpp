@@ -23,22 +23,25 @@ af::array alphaBlend(const af::array &foreground, const af::array &background, c
 
 int main()
 {
-    int loops = 20;
-    int iters = 500;
-    int dna_size_x = 1024;
+    int loops = 10;
+    int iters = 200;
+    int dna_size_x = 2048;
     int dna_size_y = 3;
     int pop_size = 100;
+    float brush_scale = 0.1f;
     float var_weights = 1.0f;
+    bool save_process = 0;
 
     Painter painter("../imgs/example.jpg", "../brushes/3.png",
-        iters, dna_size_x, dna_size_y, 
-        loops, pop_size, var_weights);
+        brush_scale, iters, dna_size_x, dna_size_y, 
+        loops, pop_size, var_weights, save_process);
 
     painter.run();
 
     auto target_image = painter.get_target_img();
     auto current_img = painter.get_current_img();
     auto c_weights = painter.get_current_weights();
+    auto fcurrent_img = af::medfilt2(current_img, 5, 5);
 
     af::Window wnd(800, 800, "Preliminary result");
         while (!wnd.close()) wnd.image(current_img);
@@ -49,6 +52,8 @@ int main()
     af::Window wnd3(target_image.dims(0), target_image.dims(1), "OG");
         while (!wnd3.close()) wnd3.image(target_image);
     
+    af::Window wnd4(800, 800, "fcurrent_img");
+        while (!wnd4.close()) wnd4.image(fcurrent_img);
 
     af::array mimg = (current_img * 255).as(u8);
     af::saveImageNative("../imgs/test1.png", mimg);
