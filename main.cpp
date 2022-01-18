@@ -23,21 +23,18 @@ af::array alphaBlend(const af::array &foreground, const af::array &background, c
 
 int main()
 {
+    int loops = 20;
     int iters = 500;
-    int dna_size_x = 512;
+    int dna_size_x = 1024;
     int dna_size_y = 3;
     int pop_size = 100;
     float var_weights = 1.0f;
 
     Painter painter("../imgs/example.jpg", "../brushes/3.png",
-        iters, dna_size_x, dna_size_y, pop_size, var_weights);
+        iters, dna_size_x, dna_size_y, 
+        loops, pop_size, var_weights);
 
-    for (int i=0; i < 10; i++)
-    {
-        painter.run();
-        if (i >= 5)
-            painter.var_weights = 0;
-    }
+    painter.run();
 
     auto target_image = painter.get_target_img();
     auto current_img = painter.get_current_img();

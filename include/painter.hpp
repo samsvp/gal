@@ -14,7 +14,7 @@ public:
 
     Painter(const char *img_path, const char *brush_path,
         int iters, int dna_size_x, int dna_size_y,
-        int pop_size=100, float var_weights=1.0f);
+        int loops=10, int pop_size=100, float var_weights=1.0f);
     /*
      * Compares the chosen points color with their respectives color on
      * the target image
@@ -32,10 +32,12 @@ public:
     af::array get_current_weights();
 
 private:
+    int loops;
     int iters;
     int dna_size_x;
     int dna_size_y;
     int pop_size;
+    const float PI = 3.14159;
     af::array target_split;
 
     af::array target_image;
@@ -43,6 +45,7 @@ private:
     af::array results;
     af::array c_weights;
     af::array current_img;
+    af::array img_gradient;
 
     std::mt19937_64 rng;    
     // initialize a uniform distribution between 0 and 1
@@ -71,10 +74,10 @@ private:
 
 Painter::Painter(const char *img_path, const char *brush_path,
     int iters, int dna_size_x, int dna_size_y,
-    int pop_size, float var_weights) : 
+    int loops, int pop_size, float var_weights) : 
         pop_size(pop_size), var_weights(var_weights),
         iters(iters), dna_size_x(dna_size_x), 
-        dna_size_y(dna_size_y)
+        dna_size_y(dna_size_y), loops(loops)
 {
     // initialize the random number generator with time-dependent seed
     uint64_t timeSeed = std::chrono::high_resolution_clock::now().
@@ -88,11 +91,18 @@ Painter::Painter(const char *img_path, const char *brush_path,
     target_image = af::loadImage(img_path) / 255.f;
     target_image = af::medfilt2(target_image, 5, 5);
 
-    brush = af::loadImage("../brushes/3.png", true) / 255.f;
+    // image edges gradient
+    af::array dx;
+    af::array dy;
+    af::sobel(dx, dy, target_image);
+    img_gradient = af::abs(af::atan2(dy, dx) / PI / 2);
+
+    // load brush image
+    brush = af::loadImage("../brushes/1.png", true) / 255.f;
     brush(af::span, af::span, af::seq(3)) += 0.f;
     brush = af::medfilt2(brush, 5, 5);
     
-    brush = af::resize(0.05f, brush);
+    brush = af::resize(0.2f, brush);
     std::cout << "brush dims " << brush.dims() << std::endl;
     std::cout << "target image " << target_image.dims() << std::endl;
 
@@ -137,7 +147,7 @@ af::array Painter::make_image(af::array metainfo,
         if (rotate)
         {
             mbrush = af::rotate(brush,
-                unif(rng) / 5, 0, 
+                af::sum<float>(metainfo(n, 2)), 0, 
                 AF_INTERP_BICUBIC);
         }
         
@@ -157,7 +167,7 @@ af::array Painter::make_image(af::array metainfo,
             //af::tile(metainfo(n, 2), size_x, size_y, 3);
             af::tile(target_image(mid_x, mid_y, 0), size_x, size_y, 3);
 
-        af::array mask = mbrush(af::span, af::span, -1) != 0;
+        af::array mask = mbrush(af::span, af::span, -1);
         // af::array mask = mbrush(af::span, af::span, -1);
 
         img(x, y, af::span, af::span) = 
@@ -173,7 +183,8 @@ af::array Painter::fitness_func(af::array coords)
     // coords is pop_size x dna_size_x x 4 x 1
     af::array x = coords(af::span, af::span, 0) * target_image.dims(0);
     af::array y = coords(af::span, af::span, 1) * target_image.dims(1);
-    af::array color = coords(af::span, af::span, 2);
+
+    af::array grad = coords(af::span, af::span, 2);
 
     af::array results = af::constant(0, coords.dims(0), coords.dims(1));
 
@@ -188,10 +199,9 @@ af::array Painter::fitness_func(af::array coords)
         af::array content_loss = af::abs(
             // 1 / weights because we want -max (optimizing towards)
             // the minimum
-            af::approx2(1 / (c_weights + 1), x(i, af::span), y(i, af::span)) *
-            (af::approx2(target_image, x(i, af::span), y(i, af::span)) - 
-            color(i, af::span))
-        );
+            af::approx2(1/(c_weights + 1), x(i, af::span), y(i, af::span)) *
+            (af::approx2(img_gradient, x(i, af::span), y(i, af::span)) - 
+            grad(i, af::span)));
 
         af::array variance_loss = // we don't want the same inputs 
             var_weights * .1f * af::tile(1/af::stdev(x(i, af::span), AF_VARIANCE_DEFAULT, 1) + 
@@ -209,24 +219,34 @@ af::array Painter::fitness_func(af::array coords)
 
 void Painter::run()
 {
+    float og_weights = var_weights;
     float mutation_rate = 0.001f;
     float cross_amount = 0.5f;
 
-    GeneticAlgorithm gal(pop_size, dna_size_x, dna_size_y,
+    for (int i=0; i<loops; i++)
+    {
+        GeneticAlgorithm gal(pop_size, dna_size_x, dna_size_y,
         mutation_rate, cross_amount, iters);
 
-    gal.run(*this);
-    af::array best = gal.get_best();
+        gal.run(*this);
+        af::array best = gal.get_best();
 
-    best = af::reorder(best, 1, 2, 0);
+        best = af::reorder(best, 1, 2, 0);
 
-    af::array results = make_image(best);
-    
-    // instead of just painting over the image
-    // we should only paint parts with lower losses
-    af::array img = make_image(best, current_img);
-    c_weights = calculate_weights(img);
-    current_img = img;
+        // instead of just painting over the image
+        // we should only paint parts with lower losses
+        af::array img = make_image(best, current_img, true);
+        c_weights = calculate_weights(img);
+        current_img = img;
+
+        // adjust brush size for fine tunning
+        if (i == loops / 2)
+            brush = af::resize(0.5f, brush);
+        if (i == 3 * loops / 4)
+            brush = af::resize(0.5f, brush);
+    }
+
+    var_weights = og_weights;
 }
 
 
