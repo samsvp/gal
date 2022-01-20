@@ -82,13 +82,14 @@ Painter::Painter(const char *img_path, const char *brush_path,
         save_process(save_process)
 {
     // downsample
-    target_image = af::loadImage(img_path) / 255.f;
+    target_image = af::loadImage(img_path, 1) / 255.f;
     target_image = af::medfilt2(target_image, 5, 5);
 
     // image edges gradient
+    af::array target_gray = af::rgb2gray(target_image);
     af::array dx;
     af::array dy;
-    af::sobel(dx, dy, target_image);
+    af::sobel(dx, dy, target_gray);
     img_gradient = af::abs(af::atan2(dy, dx) / PI / 2);
 
     // load brush image
@@ -132,7 +133,7 @@ af::array Painter::make_image(af::array metainfo,
     int img_size_x = target_image.dims(0);
     int img_size_y =  target_image.dims(1);
 
-    for (int n=0; n<metainfo.dims(0); n++)
+    for (int n=0; n<img_size_x; n++)
     { 
         af::array mbrush = brush;
 
@@ -153,11 +154,11 @@ af::array Painter::make_image(af::array metainfo,
 
         af::array mid_x = x(size_x/2);
         af::array mid_y = y(size_x/2);
-
+        
         // apply color
         mbrush(af::span, af::span, af::seq(3), af::span) = 
             //af::tile(metainfo(n, 2), size_x, size_y, 3);
-            af::tile(target_image(mid_x, mid_y, 0), size_x, size_y, 3);
+            af::tile(target_image(mid_x, mid_y, af::seq(3)), size_x, size_y);
 
         // af::array mask = mbrush(af::span, af::span, -1) >= 0.5f;
         af::array mask = mbrush(af::span, af::span, -1);
@@ -165,7 +166,8 @@ af::array Painter::make_image(af::array metainfo,
         img(x, y, af::span, af::span) = 
             alpha_blend(mbrush, img(x, y, af::span, af::span), mask);
 
-        if (save_process)
+        if (save_process && (
+            n == img_size_x - 1 || n % 50 == 0))
         {
             af::array mimg = (img * 255).as(u8);
             mimg = af::resize(0.5f, mimg);
@@ -241,10 +243,19 @@ void Painter::run()
         current_img = img;
 
         // adjust brush size for fine tunning
-        if (i == loops / 2)
+        if (i == loops / 10)
+            brush = af::resize(0.8f, brush);
+        if (i == loops / 8)
+            brush = af::resize(0.8f, brush);
+        if (i == loops / 4)
             brush = af::resize(0.5f, brush);
         if (i == 3 * loops / 4)
-            brush = af::resize(0.5f, brush);
+            brush = af::resize(0.8f, brush);
+
+        
+        if (i % 5 == 0 || i == iters - 1)
+            std::cout << "finished iteration " << 
+                i + 1 << std::endl;
     }
 
     var_weights = og_weights;
@@ -274,10 +285,11 @@ void Painter::test_image()
 
 af::array Painter::calculate_weights(af::array c_img)
 {
-    if (c_img.dims(2) != target_image.dims(2) && 
-        target_image.dims(2) == 1)
+    af::array _target_img = target_image;
+    if (c_img.dims(2) != target_image.dims(2))
     {
-        c_img = c_img(af::span, af::span, 0);
+        c_img = c_img(af::span, af::span, 
+            af::seq(target_image.dims(2)));
     }
 
     af::array black = af::constant(0, c_img.dims());
@@ -287,7 +299,7 @@ af::array Painter::calculate_weights(af::array c_img)
     // weights of painted areas are the difference between
     // the current image and target
     af::array weights = (mask) * (c_img - target_image) + (1 - mask);
-    return 3 * af::pow(weights, 2);
+    return 3 * af::sum(af::pow(weights, 2), 2);
 }
 
 

@@ -102,7 +102,7 @@ void GeneticAlgorithm::run(Score& score)
     for (int i = 0; i < iters; i++)
     {
         selection(score);
-        crossover(); 
+        //crossover(); 
         mutate();
     }
 }
@@ -134,8 +134,10 @@ void GeneticAlgorithm::selection(Score& score)
     {
         best = pop_best;
         best_score = pop_best_score;
+
+        #ifdef _DEBUG
         std::cout << best_score << std::endl;
-        //af_print(best);
+        #endif
     }
 }
 
