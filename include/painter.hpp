@@ -21,17 +21,16 @@ public:
      * Compares the chosen points color with their respectives color on
      * the target image
      */
-    af::array fitness_func(af::array coords) override;
+    const af::array fitness_func(af::array coords) override;
     /*
      * Paints the image using parts of the it and then merges it
      * together
      */
     void run();
-    void test_image();
 
-    af::array get_target_img();
-    af::array get_current_img();
-    af::array get_current_weights();
+    af::array get_target_img() const;
+    af::array get_current_img() const;
+    af::array get_current_weights() const;
 
 private:
     int loops;
@@ -55,7 +54,7 @@ private:
      * Adds two images using the alpha channel
      */
     af::array alpha_blend(const af::array &foreground, 
-        const af::array &background, const af::array &mask);
+        const af::array &background, const af::array &mask) const;
     /*
      * Metainfo is a Nx4 array containing:
      * (x,y,color,angle) all within the range of 0-1
@@ -68,7 +67,7 @@ private:
      * Calculates which parts of the image the genetic
      * algorithm should focus on
      */
-    af::array calculate_weights(af::array c_img);
+    af::array calculate_weights(af::array c_img) const;
 };
 
 
@@ -90,7 +89,7 @@ Painter::Painter(const char *img_path, const char *brush_path,
     af::array dx;
     af::array dy;
     af::sobel(dx, dy, target_gray);
-    img_gradient = af::abs(af::atan2(dy, dx) / PI / 2);
+    img_gradient = af::abs(af::atan2(dy, dx) / PI);
 
     // load brush image
     brush = af::loadImage(brush_path, true) / 255.f;
@@ -109,7 +108,7 @@ Painter::Painter(const char *img_path, const char *brush_path,
 
 
 af::array Painter::alpha_blend(const af::array &foreground, 
-    const af::array &background, const af::array &mask)
+    const af::array &background, const af::array &mask) const
 {
     af::array tiled_mask;
     if (mask.dims(2) != foreground.dims(2))
@@ -118,7 +117,8 @@ af::array Painter::alpha_blend(const af::array &foreground,
 }
 
 
-af::array Painter::make_image(af::array metainfo, bool rotate)
+af::array Painter::make_image(af::array metainfo, 
+    bool rotate)
 {
     int img_size_x = target_image.dims(0);
     int img_size_y =  target_image.dims(1);
@@ -181,7 +181,7 @@ af::array Painter::make_image(af::array metainfo,
 }
 
 
-af::array Painter::fitness_func(af::array coords)
+const af::array Painter::fitness_func(af::array coords)
 {
     // coords is pop_size x dna_size_x x 4 x 1
     af::array x = coords(af::span, af::span, 0) * target_image.dims(0);
@@ -243,11 +243,7 @@ void Painter::run()
         current_img = img;
 
         // adjust brush size for fine tunning
-        if (i == loops / 10)
-            brush = af::resize(0.8f, brush);
-        if (i == loops / 8)
-            brush = af::resize(0.8f, brush);
-        if (i == loops / 4)
+        if (i == loops / 2)
             brush = af::resize(0.5f, brush);
         if (i == 3 * loops / 4)
             brush = af::resize(0.8f, brush);
@@ -262,28 +258,7 @@ void Painter::run()
 }
 
 
-void Painter::test_image()
-{
-    float f[] = {0.5, 0.45, 0.5, 0.5, 0.5, 0.5, 1, 0.};
-    af::array a(2, 4, f);
-
-    af_print(a);
-    af::array img = make_image(a);
-
-    af::Window wnd(800, 800, "Window");
-        while (!wnd.close()) wnd.image(img);
-
-    af::array _a = af::randu(2, 4, 1, 20);
-    std::cout << "a dims: " << a.dims() << std::endl;
-    std::cout << "_a dims: " << _a.dims() << std::endl;
-    af::array _img = make_image(_a);
-
-    af::Window wnd2(800, 800, "Window");
-        while (!wnd2.close()) wnd2.image(img);
-}
-
-
-af::array Painter::calculate_weights(af::array c_img)
+af::array Painter::calculate_weights(af::array c_img) const
 {
     af::array _target_img = target_image;
     if (c_img.dims(2) != target_image.dims(2))
@@ -303,17 +278,17 @@ af::array Painter::calculate_weights(af::array c_img)
 }
 
 
-af::array Painter::get_target_img()
+af::array Painter::get_target_img() const
 {
     return target_image;
 }
 
-af::array Painter::get_current_img()
+af::array Painter::get_current_img() const
 {
     return current_img;
 }
 
-af::array Painter::get_current_weights()
+af::array Painter::get_current_weights() const
 {
     return c_weights;
 }

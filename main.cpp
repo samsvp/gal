@@ -21,18 +21,33 @@ af::array alphaBlend(const af::array &foreground, const af::array &background, c
 }
 
 
-int main()
+int main(int argc, char **argv)
 {
+    const char* img_path;
+    const char* brush_path;
+
+    // parse arguments
+    if (argc==3)
+    {
+        img_path = argv[1];
+        brush_path = argv[2];
+    }
+    else
+    {
+        img_path = "../imgs/Monalisa-01.jpg";
+        brush_path = "../brushes/3.png";
+    }
+
     int loops = 10;
-    int iters = 200;
+    int iters = 300;
     int dna_size_x = 2048;
     int dna_size_y = 3;
     int pop_size = 100;
-    float brush_scale = 0.1f;
+    float brush_scale = 0.2f;
     float var_weights = 1.0f;
-    bool save_process = 0;
+    bool save_process = 1;
 
-    Painter painter("../imgs/example.jpg", "../brushes/3.png",
+    Painter painter(img_path, brush_path,
         brush_scale, iters, dna_size_x, dna_size_y, 
         loops, pop_size, var_weights, save_process);
 

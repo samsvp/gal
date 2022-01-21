@@ -8,7 +8,7 @@
 class Score
 {
 public:
-    virtual af::array fitness_func(af::array)=0;
+    const virtual af::array fitness_func(af::array)=0;
 };
 
 
