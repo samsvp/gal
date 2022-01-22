@@ -1,7 +1,7 @@
 #include <iostream>
 #include <arrayfire.h>
-# include "include/genetic_algorithm.hpp"
-# include "include/painter.hpp"
+#include "include/genetic_algorithm.hpp"
+#include "include/painter.hpp"
 
 af::array consts = af::tile(af::randu(1, 20, 20), 500);
 
@@ -38,14 +38,14 @@ int main(int argc, char **argv)
         brush_path = "../brushes/3.png";
     }
 
-    int loops = 10;
+    int loops = 20;
     int iters = 300;
     int dna_size_x = 2048;
     int dna_size_y = 3;
     int pop_size = 100;
     float brush_scale = 0.2f;
     float var_weights = 1.0f;
-    bool save_process = 1;
+    bool save_process = 0;
 
     Painter painter(img_path, brush_path,
         brush_scale, iters, dna_size_x, dna_size_y, 

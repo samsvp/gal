@@ -89,7 +89,7 @@ Painter::Painter(const char *img_path, const char *brush_path,
     af::array dx;
     af::array dy;
     af::sobel(dx, dy, target_gray);
-    img_gradient = af::abs(af::atan2(dy, dx) / PI);
+    img_gradient = af::abs(af::atan2(dy, dx));
 
     // load brush image
     brush = af::loadImage(brush_path, true) / 255.f;
@@ -139,9 +139,9 @@ af::array Painter::make_image(af::array metainfo,
 
         if (rotate)
         {
+            float angle = 2 * PI * af::sum<float>(metainfo(n, 2)) - PI;
             mbrush = af::rotate(brush,
-                af::sum<float>(metainfo(n, 2)), 0, 
-                AF_INTERP_BICUBIC);
+                angle, 1, AF_INTERP_BICUBIC);
         }
         
         int size_x = mbrush.dims(0);
@@ -187,7 +187,7 @@ const af::array Painter::fitness_func(af::array coords)
     af::array x = coords(af::span, af::span, 0) * target_image.dims(0);
     af::array y = coords(af::span, af::span, 1) * target_image.dims(1);
 
-    af::array grad = coords(af::span, af::span, 2);
+    af::array grad = 2 * PI * coords(af::span, af::span, 2) - PI;
 
     af::array results = af::constant(0, coords.dims(0), coords.dims(1));
 
