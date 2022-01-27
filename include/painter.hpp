@@ -156,7 +156,7 @@ af::array Painter::make_image(af::array metainfo,
         af::array mid_y = y(size_x/2);
         
         // apply color
-        mbrush(af::span, af::span, af::seq(3), af::span) = 
+        mbrush(af::span, af::span, af::seq(3), af::span) *= 
             //af::tile(metainfo(n, 2), size_x, size_y, 3);
             af::tile(target_image(mid_x, mid_y, af::seq(3)), size_x, size_y);
 
@@ -202,7 +202,7 @@ const af::array Painter::fitness_func(af::array coords)
         af::array content_loss = af::abs(
             // 1 / weights because we want -max (optimizing towards)
             // the minimum
-            af::approx2(1/(c_weights + 1), x(i, af::span), y(i, af::span)) *
+            af::approx2(1/(c_weights + 0.8f * img_gradient + 1), x(i, af::span), y(i, af::span)) *
             (af::approx2(img_gradient, x(i, af::span), y(i, af::span)) - 
             grad(i, af::span)));
 
@@ -244,7 +244,7 @@ void Painter::run()
 
         // adjust brush size for fine tunning
         if (i == loops / 2)
-            brush = af::resize(0.5f, brush);
+            brush = af::resize(0.25f, brush);
         if (i == 3 * loops / 4)
             brush = af::resize(0.8f, brush);
 

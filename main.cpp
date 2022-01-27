@@ -35,15 +35,15 @@ int main(int argc, char **argv)
     else
     {
         img_path = "../imgs/Monalisa-01.jpg";
-        brush_path = "../brushes/3.png";
+        brush_path = "../brushes/4.png";
     }
 
     int loops = 20;
-    int iters = 300;
+    int iters = 200;
     int dna_size_x = 2048;
     int dna_size_y = 3;
     int pop_size = 100;
-    float brush_scale = 0.2f;
+    float brush_scale = 0.5f;
     float var_weights = 1.0f;
     bool save_process = 0;
 
