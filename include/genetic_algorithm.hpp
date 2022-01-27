@@ -64,7 +64,7 @@ private:
      * "Breeds" the best specimen(the one with the highst score)
      * with the rest of the population
      */
-    void renew(af::array row);
+    void crossover(af::array row);
     /*
      * Mutates the population
      */
@@ -86,8 +86,6 @@ GeneticAlgorithm::GeneticAlgorithm(int _pop_size,
     pop_size = _pop_size % 2 == 0 ? _pop_size : _pop_size + 1;
     // creates a random population
     population = af::randu(pop_size, dna_size_x, dna_size_y);
-
-    //af_print(population);
 }
 
 
@@ -102,7 +100,6 @@ void GeneticAlgorithm::run(Score& score)
     for (int i = 0; i < iters; i++)
     {
         selection(score);
-        //crossover(); 
         mutate();
     }
 }
@@ -128,7 +125,8 @@ void GeneticAlgorithm::selection(Score& score)
     
     af::array pop_best = population(idx,
         af::span, af::span);
-    renew(pop_best);
+
+    crossover(pop_best);
 
     if (pop_best_score > best_score)
     {
@@ -142,24 +140,7 @@ void GeneticAlgorithm::selection(Score& score)
 }
 
 
-void GeneticAlgorithm::crossover()
-{
-    af::array p1 = population(af::seq(0, af::end, 2), af::span, af::span);
-    af::array p2 = population(af::seq(1, af::end, 2), af::span, af::span);
-    af::array p3 = p2;
-    
-    af::array r = af::randu(pop_size / 2, dna_size_x, dna_size_y);
-    af::array idxs = r > cross_amount;
-
-    p2 = idxs * p1 + (1 - idxs) * p2;
-    p1 = idxs * p3 + (1 - idxs) * p1;
-
-    population(af::seq(0, af::end, 2), af::span, af::span) = p1;
-    population(af::seq(1, af::end, 2), af::span, af::span) = p2;
-}
-
-
-void GeneticAlgorithm::renew(af::array best)
+void GeneticAlgorithm::crossover(af::array best)
 {
     af::array r = af::randu(pop_size, dna_size_x, dna_size_y);
     af::array idxs_replace = r < 0.5f;
