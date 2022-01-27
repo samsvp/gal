@@ -45,13 +45,14 @@ int main(int argc, char **argv)
     int pop_size = 100;
     float brush_scale = 0.5f;
     float var_weights = 1.0f;
-    bool save_process = 0;
+    float grad_weights = 1.2f;
+    bool save = 0;
 
     Painter painter(img_path, brush_path,
         brush_scale, iters, dna_size_x, dna_size_y, 
-        loops, pop_size, var_weights, save_process);
+        loops, pop_size, var_weights, grad_weights);
 
-    painter.run();
+    painter.run(save);
 
     auto target_image = painter.get_target_img();
     auto current_img = painter.get_current_img();

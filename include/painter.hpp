@@ -12,11 +12,12 @@ class Painter : public Score
 {
 public:
     float var_weights = 1.0f;
+    float grad_weights = 1.0f;
 
     Painter(const char *img_path, const char *brush_path,
         float brush_scale, int iters, int dna_size_x, 
         int dna_size_y, int loops=10, int pop_size=100,
-        float var_weights=1.0f, bool save_process=false);
+        float var_weights=1.0f, float grad_weights=1.0f);
     /*
      * Compares the chosen points color with their respectives color on
      * the target image
@@ -26,7 +27,7 @@ public:
      * Paints the image using parts of the it and then merges it
      * together
      */
-    void run();
+    void run(bool save=false);
 
     af::array get_target_img() const;
     af::array get_current_img() const;
@@ -38,8 +39,6 @@ private:
     int dna_size_x;
     int dna_size_y;
     int pop_size;
-    bool save_process;
-    int frame_n = 0; // used if save_process is true
     const float PI = 3.14159;
     af::array target_split;
 
@@ -59,9 +58,10 @@ private:
      * Metainfo is a Nx4 array containing:
      * (x,y,color,angle) all within the range of 0-1
      */
-    af::array make_image(af::array metainfo, bool rotate=false);    
+    af::array make_image(af::array metainfo, 
+        bool save=false, int* frame_n=0, bool rotate=false) const;    
     af::array make_image(af::array metainfo, af::array img,
-        bool rotate=false);
+        bool save=false, int* frame_n=0, bool rotate=false) const;
 
     /*
      * Calculates which parts of the image the genetic
@@ -74,11 +74,11 @@ private:
 Painter::Painter(const char *img_path, const char *brush_path,
     float brush_scale, int iters, int dna_size_x,
     int dna_size_y, int loops, int pop_size, 
-    float var_weights, bool save_process) : 
+    float var_weights, float grad_weights) : 
         pop_size(pop_size), var_weights(var_weights),
         iters(iters), dna_size_x(dna_size_x), 
         dna_size_y(dna_size_y), loops(loops),
-        save_process(save_process)
+        grad_weights(grad_weights)
 {
     // downsample
     target_image = af::loadImage(img_path, 1) / 255.f;
@@ -118,17 +118,18 @@ af::array Painter::alpha_blend(const af::array &foreground,
 
 
 af::array Painter::make_image(af::array metainfo, 
-    bool rotate)
+    bool save, int* frame_n, bool rotate) const
 {
     int img_size_x = target_image.dims(0);
     int img_size_y =  target_image.dims(1);
     af::array img = af::constant(0, img_size_x, img_size_y, 4, 1, f32);
-    return make_image(metainfo, img, rotate);
+    return make_image(metainfo, img, save, frame_n, rotate);
 }
 
 
 af::array Painter::make_image(af::array metainfo, 
-    af::array img, bool rotate)
+    af::array img, bool save, 
+    int* frame_n, bool rotate) const
 {
     int img_size_x = target_image.dims(0);
     int img_size_y =  target_image.dims(1);
@@ -166,13 +167,13 @@ af::array Painter::make_image(af::array metainfo,
         img(x, y, af::span, af::span) = 
             alpha_blend(mbrush, img(x, y, af::span, af::span), mask);
 
-        if (save_process && (
+        if (save && (
             n == img_size_x - 1 || n % 50 == 0))
         {
             af::array mimg = (img * 255).as(u8);
             mimg = af::resize(0.5f, mimg);
             std::string filename = "../imgs/process/" + 
-                std::to_string(frame_n++) + ".png";
+                std::to_string(*frame_n++) + ".png";
             af::saveImageNative(filename.c_str(), mimg);
         }
     }
@@ -202,7 +203,8 @@ const af::array Painter::fitness_func(af::array coords)
         af::array content_loss = af::abs(
             // 1 / weights because we want -max (optimizing towards)
             // the minimum
-            af::approx2(1/(c_weights + 0.8f * img_gradient + 1), x(i, af::span), y(i, af::span)) *
+            af::approx2(1/(c_weights + grad_weights * img_gradient + 1),
+                x(i, af::span), y(i, af::span)) *
             (af::approx2(img_gradient, x(i, af::span), y(i, af::span)) - 
             grad(i, af::span)));
 
@@ -215,16 +217,16 @@ const af::array Painter::fitness_func(af::array coords)
 
     return af::sum(
         -(af::pow(results, 2)
-        // 1/(af::pow(target_image - paint_img, 2)+0.1f
     ), 1); // sum every row
 }
 
 
-void Painter::run()
+void Painter::run(bool save)
 {
     float og_weights = var_weights;
     float mutation_rate = 0.001f;
     float cross_amount = 0.5f;
+    int frame_n = 0;
 
     for (int i=0; i<loops; i++)
     {
@@ -238,7 +240,8 @@ void Painter::run()
 
         // instead of just painting over the image
         // we should only paint parts with lower losses
-        af::array img = make_image(best, current_img, true);
+        af::array img = make_image(best, current_img, 
+            save, &frame_n, true);
         c_weights = calculate_weights(img);
         current_img = img;
 
