@@ -16,8 +16,7 @@ class GeneticAlgorithm
 {
 public:
     GeneticAlgorithm(int pop_size, int dna_size_x,
-        int dna_size_y, float mutation_rate, 
-        float cross_amount, int iters);
+        int dna_size_y, float mutation_rate, int iters);
     ~GeneticAlgorithm();
     /*
      * Runs the algorithm
@@ -31,7 +30,6 @@ public:
      * Returns the best population score
      */
     float get_best_score();
-    float cross_amount;
     float mutation_rate;
 
 private:
@@ -78,10 +76,9 @@ private:
 
 GeneticAlgorithm::GeneticAlgorithm(int _pop_size, 
         int dna_size_x, int dna_size_y, float mutation_rate, 
-        float cross_amount, int iters) :
+        int iters) :
             dna_size_x(dna_size_x), dna_size_y(dna_size_y),
-            mutation_rate(mutation_rate), 
-            cross_amount(cross_amount), iters(iters)
+            mutation_rate(mutation_rate), iters(iters)
 {
     pop_size = _pop_size % 2 == 0 ? _pop_size : _pop_size + 1;
     // creates a random population
@@ -101,6 +98,10 @@ void GeneticAlgorithm::run(Score& score)
     {
         selection(score);
         mutate();
+
+        #ifndef NDEBUG
+        std::cout << "iteration: " << i << std::endl;
+        #endif
     }
 }
 
@@ -133,7 +134,7 @@ void GeneticAlgorithm::selection(Score& score)
         best = pop_best;
         best_score = pop_best_score;
 
-        #ifdef _DEBUG
+        #ifdef NDEBUG
         std::cout << best_score << std::endl;
         #endif
     }
@@ -143,7 +144,7 @@ void GeneticAlgorithm::selection(Score& score)
 void GeneticAlgorithm::crossover(af::array best)
 {
     af::array r = af::randu(pop_size, dna_size_x, dna_size_y);
-    af::array idxs_replace = r < 0.5f;
+    af::array idxs_replace = r < 0.5f; // should be based on score
 
     population = 
         idxs_replace * af::tile(best, pop_size) + 

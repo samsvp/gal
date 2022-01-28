@@ -18,6 +18,8 @@ public:
         float brush_scale, int iters, int dna_size_x, 
         int dna_size_y, int loops=10, int pop_size=100,
         float var_weights=1.0f, float grad_weights=1.0f);
+    ~Painter();
+
     /*
      * Compares the chosen points color with their respectives color on
      * the target image
@@ -104,6 +106,12 @@ Painter::Painter(const char *img_path, const char *brush_path,
     current_img = af::constant(0, target_image.dims(0), 
         target_image.dims(1), 4, 1, f32);
     c_weights = calculate_weights(current_img);
+}
+
+
+Painter::~Painter()
+{
+    
 }
 
 
@@ -225,13 +233,12 @@ void Painter::run(bool save)
 {
     float og_weights = var_weights;
     float mutation_rate = 0.001f;
-    float cross_amount = 0.5f;
     int frame_n = 0;
 
     for (int i=0; i<loops; i++)
     {
-        GeneticAlgorithm gal(pop_size, dna_size_x, dna_size_y,
-        mutation_rate, cross_amount, iters);
+        GeneticAlgorithm gal(pop_size, dna_size_x, 
+        dna_size_y, mutation_rate, iters);
 
         gal.run(*this);
         af::array best = gal.get_best();
