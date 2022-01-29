@@ -5,6 +5,8 @@
 #include <chrono>
 #include <iostream>
 #include <arrayfire.h>
+
+#include "image_functions.hpp"
 #include "genetic_algorithm.hpp"
 
 
@@ -41,7 +43,6 @@ private:
     int dna_size_x;
     int dna_size_y;
     int pop_size;
-    const float PI = 3.14159;
     af::array target_split;
 
     af::array target_image;
@@ -51,11 +52,6 @@ private:
     af::array current_img;
     af::array img_gradient;
 
-    /*
-     * Adds two images using the alpha channel
-     */
-    af::array alpha_blend(const af::array &foreground, 
-        const af::array &background, const af::array &mask) const;
     /*
      * Metainfo is a Nx4 array containing:
      * (x,y,color,angle) all within the range of 0-1
@@ -115,16 +111,6 @@ Painter::~Painter()
 }
 
 
-af::array Painter::alpha_blend(const af::array &foreground, 
-    const af::array &background, const af::array &mask) const
-{
-    af::array tiled_mask;
-    if (mask.dims(2) != foreground.dims(2))
-        tiled_mask = tile(mask, 1, 1, foreground.dims(2));
-    return foreground * tiled_mask + (1.0f-tiled_mask) * background;
-}
-
-
 af::array Painter::make_image(af::array metainfo, 
     bool save, int* frame_n, bool rotate) const
 {
@@ -146,34 +132,26 @@ af::array Painter::make_image(af::array metainfo,
     { 
         af::array mbrush = brush;
 
-        if (rotate)
-        {
-            float angle = 2 * PI * af::sum<float>(metainfo(n, 2)) - PI;
-            mbrush = af::rotate(brush,
-                angle, 1, AF_INTERP_BICUBIC);
-        }
-        
-        int size_x = mbrush.dims(0);
-        int size_y = mbrush.dims(1);
+        float angle = af::sum<float>(metainfo(n, 2));
+        af::array x = metainfo(n, 0);
+        af::array y = metainfo(n, 1);
 
-        af::array x = af::seq(size_x) + 
-            af::tile(metainfo(n, 0) * img_size_x, size_x);
-        af::array y = af::seq(size_y) + 
-            af::tile(metainfo(n, 1) * img_size_y, size_y);
+        af::array _target_img = target_image;
 
-        af::array mid_x = x(size_x/2);
-        af::array mid_y = y(size_x/2);
-        
-        // apply color
-        mbrush(af::span, af::span, af::seq(3), af::span) *= 
-            //af::tile(metainfo(n, 2), size_x, size_y, 3);
-            af::tile(target_image(mid_x, mid_y, af::seq(3)), size_x, size_y);
+        img = ifs::add_imgs(mbrush, img, x, y, 1, angle,
+            [&_target_img](af::array mbrush, af::array _1, af::array x, af::array y, af::array _2)
+            {
+                int size_x = mbrush.dims(0);
+                int size_y = mbrush.dims(1);
 
-        // af::array mask = mbrush(af::span, af::span, -1) >= 0.5f;
-        af::array mask = mbrush(af::span, af::span, -1);
+                af::array mid_x = x(size_x/2);
+                af::array mid_y = y(size_y/2);
 
-        img(x, y, af::span, af::span) = 
-            alpha_blend(mbrush, img(x, y, af::span, af::span), mask);
+                // apply color
+                mbrush(af::span, af::span, af::seq(3), af::span) *= 
+                    af::tile(_target_img(mid_x, mid_y, af::seq(3)), size_x, size_y);
+                return mbrush;
+            });
 
         if (save && (
             n == img_size_x - 1 || n % 50 == 0))
@@ -196,7 +174,7 @@ const af::array Painter::fitness_func(af::array coords)
     af::array x = coords(af::span, af::span, 0) * target_image.dims(0);
     af::array y = coords(af::span, af::span, 1) * target_image.dims(1);
 
-    af::array grad = 2 * PI * coords(af::span, af::span, 2) - PI;
+    af::array grad = 2 * ifs::PI * coords(af::span, af::span, 2) - ifs::PI;
 
     af::array results = af::constant(0, coords.dims(0), coords.dims(1));
 

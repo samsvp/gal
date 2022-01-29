@@ -19,7 +19,7 @@ int main()
         obj_pths.push_back(entry.path());
 
     int pop_size = 100;
-    int max_objs = 30;
+    int max_objs = 15;
     int iters = 300;
     float mutation_rate = 0.001f;
     Packer packer("../imgs/reserva_smooth.png", obj_pths, 1);

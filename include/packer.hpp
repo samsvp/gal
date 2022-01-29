@@ -6,7 +6,9 @@
 #include <algorithm>
 #include <arrayfire.h>
 
+#include "image_functions.hpp"
 #include "genetic_algorithm.hpp"
+
 
 /*
  * Recreates the given image using
@@ -31,17 +33,11 @@ public:
 
 
 private:
-    const float PI = 3.14159;
-    /*
-     * Adds two images using the alpha channel
-     */
-    af::array alpha_blend(const af::array &foreground, 
-        const af::array &background, const af::array &mask) const;
     /*
      * Metainfo is a Nx5 array containing:
      * (x,y,scale,obj_index,angle), all within the range of 0-1
      */
-    const af::array make_image(af::array coords);
+    af::array make_image(af::array coords) const;
     std::vector<af::array> objects; // make a pure af::array later
     af::array target_img;
     af::array gradient_img;
@@ -132,7 +128,7 @@ af::array Packer::run(int pop_size, int max_objs,
 }
 
 
-const af::array Packer::make_image(af::array metainfo)
+af::array Packer::make_image(af::array metainfo) const
 {
     int img_size_x = target_img.dims(0);
     int img_size_y = target_img.dims(1);
@@ -152,37 +148,13 @@ const af::array Packer::make_image(af::array metainfo)
 
         af::array stamp = af::resize(af::sum<float>(0.7f * metainfo(i, 2)+0.3), objects[idx]);
 
-        float angle = 2 * PI * af::sum<float>(metainfo(i, 4)) - PI;
-        stamp = af::rotate(stamp, angle, 1);
-
-        int size_x = stamp.dims(0);
-        int size_y = stamp.dims(1);
-
-        af::array x = af::seq(size_x) + 
-            af::tile(metainfo(i, 0) * img_size_x, size_x);
-        af::array y = af::seq(size_y) + 
-            af::tile(metainfo(i, 1) * img_size_y, size_y);
-
-        af::array mid_x = x(size_x/2);
-        af::array mid_y = y(size_x/2);
-
-        af::array mask = stamp(af::span, af::span, -1);
-
-        img(x, y, af::span, af::span) = 
-            alpha_blend(stamp, img(x, y, af::span, af::span), mask);
+        float angle = af::sum<float>(metainfo(i, 4));
+        af::array x = metainfo(i, 0);
+        af::array y = metainfo(i, 1);
+        img = ifs::add_imgs(stamp, img, x, y, 1, angle);
     }
     
     return img;
-}
-
-
-af::array Packer::alpha_blend(const af::array &foreground, 
-    const af::array &background, const af::array &mask) const
-{
-    af::array tiled_mask;
-    if (mask.dims(2) != foreground.dims(2))
-        tiled_mask = tile(mask, 1, 1, foreground.dims(2));
-    return foreground * tiled_mask + (1.0f-tiled_mask) * background;
 }
 
 
@@ -211,9 +183,12 @@ const af::array Packer::fitness_func(af::array coords)
         af::array x = coord(af::span, 0);
         af::array y = coord(af::span, 1);
         
+        /*
+         * make the constants hyperparameters
+         */
         // calculate angle difference
-        af::array angles = 2 * PI * (coord(af::span, 4)) - PI;
-        af::array acost = 500 * af::sum(af::pow(angles - af::approx2(gradient_img, x, y), 2));
+        af::array angles = 2 * ifs::PI * (coord(af::span, 4)) - ifs::PI;
+        af::array angle_cost = 500 * af::sum(af::pow(angles - af::approx2(gradient_img, x, y), 2));
 
         // it is also undesirable to use the same img every time
         af::array ivariance_loss = 
@@ -221,10 +196,10 @@ const af::array Packer::fitness_func(af::array coords)
 
         // don't choose the same scales
         af::array svariance_loss = 
-            5000 * 1/(af::stdev(coord(af::span, 2), AF_VARIANCE_DEFAULT));
+            500000 * 1/(af::stdev(coord(af::span, 2), AF_VARIANCE_DEFAULT));
 
         // total cost
-        costs(i) = af::sum(af::sum(cost + grad_cost)) + acost + ivariance_loss + svariance_loss;
+        costs(i) = af::sum(af::sum(cost + grad_cost)) + angle_cost + ivariance_loss + svariance_loss;
     }
     
     // we need to frame it as a maximization problem
