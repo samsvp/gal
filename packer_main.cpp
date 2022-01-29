@@ -19,13 +19,13 @@ int main()
         obj_pths.push_back(entry.path());
 
     int pop_size = 100;
-    int max_objs = 20;
-    int iters = 100;
+    int max_objs = 30;
+    int iters = 300;
     float mutation_rate = 0.001f;
-    Packer packer("../imgs/reserva.png", obj_pths);
+    Packer packer("../imgs/reserva_smooth.png", obj_pths, 1);
     af::array current_img = packer.run(pop_size, max_objs, mutation_rate, iters);
 
-    af::Window wnd(800, 800, "Preliminary result");
+    af::Window wnd("Preliminary result");
         while (!wnd.close()) wnd.image(current_img);
 
     return 0;

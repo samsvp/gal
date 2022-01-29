@@ -134,7 +134,7 @@ void GeneticAlgorithm::selection(Score& score)
         best = pop_best;
         best_score = pop_best_score;
 
-        #ifdef NDEBUG
+        #ifndef NDEBUG
         std::cout << best_score << std::endl;
         #endif
     }

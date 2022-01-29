@@ -2,20 +2,30 @@
 
 #include <vector>
 #include <string>
+#include <numeric>
+#include <algorithm>
 #include <arrayfire.h>
 
 #include "genetic_algorithm.hpp"
 
-
+/*
+ * Recreates the given image using
+ * the given objects
+ */
 class Packer : public Score
 {
 public:
     Packer(const char* target_path,
-        std::vector<std::string> objs_path);
+        std::vector<std::string> objs_path,
+        bool norm_imgs);
     ~Packer();
 
     const af::array fitness_func(af::array coords) override;
 
+    /*
+     * Runs the algorithm and returns the best
+     * solution.
+     */
     af::array run(int pop_size, int max_objs, 
         float mutation_rate, int iters=100);
 
@@ -27,14 +37,20 @@ private:
      */
     af::array alpha_blend(const af::array &foreground, 
         const af::array &background, const af::array &mask) const;
+    /*
+     * Metainfo is a Nx5 array containing:
+     * (x,y,scale,obj_index,angle), all within the range of 0-1
+     */
     const af::array make_image(af::array coords);
-    std::vector<af::array> objects;
+    std::vector<af::array> objects; // make a pure af::array later
     af::array target_img;
+    af::array gradient_img;
 };
 
 
 Packer::Packer(const char* target_path,
-    std::vector<std::string> objs_path)
+    std::vector<std::string> objs_path,
+    bool norm_imgs)
 {
     af::array _target_img = af::loadImage(target_path, 1) / 255.f;
 
@@ -47,6 +63,14 @@ Packer::Packer(const char* target_path,
     // normalize values
     target_img /= af::max<float>(target_img);
 
+    // image edges gradient
+    af::array dx;
+    af::array dy;
+    // work on blurred img to have a smoother gradient
+    af::sobel(dx, dy, af::medfilt2(target_img, 5, 5));
+    gradient_img = af::abs(af::atan2(dy, dx));
+
+
     // load img objects
     for (std::string& obj_path : objs_path)
     {
@@ -55,6 +79,27 @@ Packer::Packer(const char* target_path,
         af::array _res_img = af::resize(0.5f, _img);
         objects.push_back(_res_img);
     }
+
+    if (!norm_imgs) return;
+
+    // rescale images to have around the same size
+    // get x dims
+    std::vector<int> x_dims;
+    std::transform(objects.begin(), objects.end(), 
+        std::back_inserter(x_dims), [](af::array img) {return img.dims(0);});
+
+    // find mean x dims
+    float mean = std::reduce(x_dims.begin(), x_dims.end())/(float)x_dims.size();
+
+    // rescale
+    std::transform(objects.begin(), objects.end(), 
+        objects.begin(), 
+        [&mean](af::array img) {return af::resize(mean / img.dims(0), img);});
+
+
+    std::cout << "Images resized to:" << std::endl;
+    for (auto &img: objects)
+        std::cout << img.dims() << std::endl;
 }
 
 
@@ -67,7 +112,7 @@ Packer::~Packer()
 af::array Packer::run(int pop_size, int max_objs, 
     float mutation_rate, int iters)
 {
-    GeneticAlgorithm gal(pop_size, max_objs, 4,
+    GeneticAlgorithm gal(pop_size, max_objs, 5,
         mutation_rate, iters);
 
     gal.run(*this);
@@ -80,7 +125,7 @@ af::array Packer::run(int pop_size, int max_objs,
     const af::array bw_target = (target_img > 0.01f);
     af::array cost = (bw_image + target_img) * (!bw_image + !target_img);
 
-    af::Window wnd(800, 800, "Preliminary result");
+    af::Window wnd("Preliminary result");
         while (!wnd.close()) wnd.image(cost);
 
     return make_image(best);
@@ -92,10 +137,9 @@ const af::array Packer::make_image(af::array metainfo)
     int img_size_x = target_img.dims(0);
     int img_size_y = target_img.dims(1);
 
-
     // kind of ineficient
     // it would be better if we could create
-    // all instances of the pop 
+    // all instances of the population 
     // at the same time
     af::array img = af::constant(0, img_size_x, img_size_y, 4);
 
@@ -106,7 +150,10 @@ const af::array Packer::make_image(af::array metainfo)
     {
         int idx = indexes(i).scalar<int>();
 
-        af::array stamp = objects[idx];
+        af::array stamp = af::resize(af::sum<float>(0.7f * metainfo(i, 2)+0.3), objects[idx]);
+
+        float angle = 2 * PI * af::sum<float>(metainfo(i, 4)) - PI;
+        stamp = af::rotate(stamp, angle, 1);
 
         int size_x = stamp.dims(0);
         int size_y = stamp.dims(1);
@@ -118,7 +165,7 @@ const af::array Packer::make_image(af::array metainfo)
 
         af::array mid_x = x(size_x/2);
         af::array mid_y = y(size_x/2);
-        
+
         af::array mask = stamp(af::span, af::span, -1);
 
         img(x, y, af::span, af::span) = 
@@ -146,19 +193,40 @@ const af::array Packer::fitness_func(af::array coords)
     for (int i=0; i<pop_size; i++)
     {
         af::array coord = af::reorder(coords(i, af::span), 1, 2, 0);
+        
+        // image should actually be made inside here
+        // that's because we must punish overlapping objs
         af::array img = make_image(coord);
 
         // turn every transparent pixel into black
         // and every non transparent pixel into white
         const af::array bw_image = (img(af::span, af::span, 3) > 0.01f);
         const af::array bw_target = (target_img > 0.01f);
+        const af::array bw_gradient = (gradient_img > 0.01f);
         // we punish the image if it puts objects outsite
         // but reward it for putting objects inside the picture
-        af::array cost = (bw_image + target_img) * (!bw_image + !target_img);
+        af::array cost = (5 * bw_image + target_img) * (!bw_image + !target_img);
+        af::array grad_cost = 0.1 * bw_image * !bw_gradient; // punish for not filling the edges
+        
+        af::array x = coord(af::span, 0);
+        af::array y = coord(af::span, 1);
+        
+        // calculate angle difference
+        af::array angles = 2 * PI * (coord(af::span, 4)) - PI;
+        af::array acost = 500 * af::sum(af::pow(angles - af::approx2(gradient_img, x, y), 2));
 
-        // sum over both dimensions
-        costs(i) = af::sum(af::sum(cost));
+        // it is also undesirable to use the same img every time
+        af::array ivariance_loss = 
+            1000 * 1/(af::stdev(coord(af::span, 3), AF_VARIANCE_DEFAULT));
+
+        // don't choose the same scales
+        af::array svariance_loss = 
+            5000 * 1/(af::stdev(coord(af::span, 2), AF_VARIANCE_DEFAULT));
+
+        // total cost
+        costs(i) = af::sum(af::sum(cost + grad_cost)) + acost + ivariance_loss + svariance_loss;
     }
     
+    // we need to frame it as a maximization problem
     return -costs;
 }
