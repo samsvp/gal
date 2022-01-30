@@ -31,6 +31,13 @@ public:
     af::array run(int pop_size, int max_objs, 
         float mutation_rate, int iters=100);
 
+    // cost function weights
+    float fill_weight = 5;
+    float grad_weight = 0.1;
+    float angle_weight = 500;
+    float obj_var_weight = 1000;
+    float scale_var_weight = 1000;
+
 
 private:
     /*
@@ -70,9 +77,10 @@ Packer::Packer(const char* target_path,
     // load img objects
     for (std::string& obj_path : objs_path)
     {
+        std::cout << obj_path << std::endl;
         af::array _img = af::loadImage(obj_path.c_str(), 1) / 255.f;
          // resize just to hold less stuff
-        af::array _res_img = af::resize(0.5f, _img);
+        af::array _res_img = af::resize(0.1f, _img);
         objects.push_back(_res_img);
     }
 
@@ -177,8 +185,8 @@ const af::array Packer::fitness_func(af::array coords)
         const af::array bw_gradient = (gradient_img > 0.01f);
         // we punish the image if it puts objects outsite
         // but reward it for putting objects inside the picture
-        af::array cost = (5 * bw_image + target_img) * (!bw_image + !target_img);
-        af::array grad_cost = 0.1 * bw_image * !bw_gradient; // punish for not filling the edges
+        af::array cost = (fill_weight * bw_image + target_img) * (!bw_image + !target_img);
+        af::array grad_cost = grad_weight * bw_image * !bw_gradient; // punish for not filling the edges
         
         af::array x = coord(af::span, 0);
         af::array y = coord(af::span, 1);
@@ -188,15 +196,15 @@ const af::array Packer::fitness_func(af::array coords)
          */
         // calculate angle difference
         af::array angles = 2 * ifs::PI * (coord(af::span, 4)) - ifs::PI;
-        af::array angle_cost = 500 * af::sum(af::pow(angles - af::approx2(gradient_img, x, y), 2));
+        af::array angle_cost = angle_weight * af::sum(af::pow(angles - af::approx2(gradient_img, x, y), 2));
 
         // it is also undesirable to use the same img every time
         af::array ivariance_loss = 
-            1000 * 1/(af::stdev(coord(af::span, 3), AF_VARIANCE_DEFAULT));
+            obj_var_weight * 1/(af::stdev(coord(af::span, 3), AF_VARIANCE_DEFAULT));
 
         // don't choose the same scales
         af::array svariance_loss = 
-            500000 * 1/(af::stdev(coord(af::span, 2), AF_VARIANCE_DEFAULT));
+            scale_var_weight * 1/(af::stdev(coord(af::span, 2), AF_VARIANCE_DEFAULT));
 
         // total cost
         costs(i) = af::sum(af::sum(cost + grad_cost)) + angle_cost + ivariance_loss + svariance_loss;
