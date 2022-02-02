@@ -33,13 +33,10 @@ public:
         float mutation_rate, int iters=100);
 
     // cost function weights
-    float area_weight = 50;
-    float cost_weight = 8;
+    float area_weight = 800;
+    float cost_weight = 50;
     float fill_weight = 5;
-    float grad_weight = 0.;    
     float angle_weight = 500;
-    float overlap_weight = 10;
-
 
 private:
     /*
@@ -47,10 +44,11 @@ private:
      * (x,y,scale,obj_index,angle), all within the range of 0-1
      */
     af::array make_image(af::array coords) const;
+    af::array make_image_bw(af::array coords) const;
     std::vector<af::array> object_set; // make a pure af::array later
+    std::vector<af::array> objects_bw; // make a pure af::array later
     std::vector<af::array> objects; // make a pure af::array later
     af::array target_img;
-    af::array gradient_img;
 };
 
 
@@ -68,14 +66,6 @@ Packer::Packer(const char* target_path,
     target_img = af::rgb2gray(_target_img);
     // normalize values
     target_img /= af::max<float>(target_img);
-
-    // image edges gradient
-    af::array dx;
-    af::array dy;
-    // work on blurred img to have a smoother gradient
-    af::sobel(dx, dy, af::medfilt2(target_img, 5, 5));
-    gradient_img = af::abs(af::atan2(dy, dx));
-
 
     // load img objects
     for (std::string& obj_path : objs_path)
@@ -106,11 +96,12 @@ af::array Packer::run(int pop_size, int max_objs,
         std::uniform_int_distribution<std::mt19937::result_type> 
             dist6(0, object_set.size() - 1);
         int r = dist6(rng);
+        objects.push_back(object_set[r]);
         af::array bw_obj = (object_set[r] > 0.01);
-        objects.push_back(bw_obj(af::span, af::span, 0));
+        objects_bw.push_back(bw_obj(af::span, af::span, 0));
     }    
 
-    GeneticAlgorithm gal(pop_size, max_objs, 5,
+    GeneticAlgorithm gal(pop_size, max_objs, 4,
         mutation_rate, iters);
 
     gal.run(*this);
@@ -118,7 +109,7 @@ af::array Packer::run(int pop_size, int max_objs,
 
     best = af::reorder(best, 1, 2, 0);
 
-    af::array img = make_image(best);
+    af::array img = make_image_bw(best);
 
     const af::array bw_image = (img(af::span, af::span, 0) > 0.001f);
     const af::array bw_target = (target_img > 0.001f);
@@ -131,7 +122,32 @@ af::array Packer::run(int pop_size, int max_objs,
 }
 
 
-af::array Packer::make_image(af::array coord) const
+af::array Packer::make_image(af::array metainfo) const
+{
+    int img_size_x = target_img.dims(0);
+    int img_size_y = target_img.dims(1);
+
+    // kind of ineficient
+    // it would be better if we could create
+    // all instances of the population 
+    // at the same time
+    af::array img = af::constant(0, img_size_x, img_size_y, 4);
+
+    for (int i=0; i<metainfo.dims(0); i++)
+    {
+        af::array foreground = af::resize(af::sum<float>(0.7f * metainfo(i, 2)+0.3), objects[i]);
+
+        float angle = af::sum<float>(metainfo(i, 3));
+        af::array x = metainfo(i, 0);
+        af::array y = metainfo(i, 1);
+        img = ifs::add_imgs(foreground, img, x, y, 1, angle);
+    }
+    
+    return img;
+}
+
+
+af::array Packer::make_image_bw(af::array coord) const
 {
         
     int img_size_x = target_img.dims(0);
@@ -143,12 +159,12 @@ af::array Packer::make_image(af::array coord) const
     for (int i=0; i<coord.dims(0); i++)
     {
         af::array foreground = af::resize(
-            af::sum<float>(0.7f * coord(i, 2)+0.3), objects[i]);;
+            af::sum<float>(0.7f * coord(i, 2)+0.3f), objects_bw[i]);;
 
         int size_x = foreground.dims(0);
         int size_y = foreground.dims(1);
 
-        float angle = af::sum<float>(coord(i, 4));
+        float angle = af::sum<float>(coord(i, 3));
         af::array _x = coord(i, 0);
         af::array _y = coord(i, 1);
 
@@ -168,45 +184,12 @@ af::array Packer::make_image(af::array coord) const
 }
 
 
-// af::array Packer::make_image(af::array metainfo) const
-// {
-//     int img_size_x = target_img.dims(0);
-//     int img_size_y = target_img.dims(1);
-
-//     // kind of ineficient
-//     // it would be better if we could create
-//     // all instances of the population 
-//     // at the same time
-//     af::array img = af::constant(0, img_size_x, img_size_y, 4);
-
-//     af::array indexes = metainfo(af::span, 3) * objects.size();
-//     indexes = indexes.as(s32);
-
-//     for (int i=0; i<metainfo.dims(0); i++)
-//     {
-//         int idx = indexes(i).scalar<int>();
-
-//         af::array stamp = af::resize(af::sum<float>(0.7f * metainfo(i, 2)+0.3), objects[idx]);
-
-//         float angle = af::sum<float>(metainfo(i, 4));
-//         af::array x = metainfo(i, 0);
-//         af::array y = metainfo(i, 1);
-//         img = ifs::add_imgs(stamp, img, x, y, 1, angle);
-//     }
-    
-//     return img;
-// }
-
-
 // coords (pop_size, max_objs, 4, 1)
 const af::array Packer::fitness_func(af::array coords)
 {
     int pop_size = coords.dims(0);
     af::array costs = af::constant(0, pop_size, f32);
     
-    int img_size_x = target_img.dims(0);
-    int img_size_y = target_img.dims(1);
-
     for (int j = 0; j < pop_size; j++)
     {
         // make image
@@ -214,55 +197,17 @@ const af::array Packer::fitness_func(af::array coords)
         // it would be better if we could create
         // all instances of the population 
         // at the same time
-        af::array bw_img = af::constant(0, img_size_x, img_size_y, 1);
-        af::array bw_target = (target_img > 0.01f);
-        const af::array bw_gradient = (gradient_img > 0.01f);
-
         af::array coord = af::reorder(coords(j, af::span), 1, 2, 0);
-        af::array total_cost = af::constant(0, 1);
-
-        for (int i=0; i<coord.dims(0); i++)
-        {
-            af::array foreground = af::resize(
-                af::sum<float>(0.9f * coord(i, 2)+0.1), objects[i]);;
-
-            int size_x = foreground.dims(0);
-            int size_y = foreground.dims(1);
-
-            float angle = af::sum<float>(coord(i, 4));
-            af::array _x = coord(i, 0);
-            af::array _y = coord(i, 1);
-
-            af::array x = af::seq(size_x) + 
-                af::tile(_x * img_size_x, size_x);
-            af::array y = af::seq(size_y) + 
-                af::tile(_y * img_size_y, size_y);
-
-            af::array n_img = bw_img;
-            n_img(x, y, af::span, af::span) = 
-                bw_img(x, y, af::span, af::span) + foreground;
-
-            // object overlap
-            af::array overlap_cost = bw_target * (bw_img + n_img) * (!bw_img + !n_img);
-
-            // calculate angle difference
-            // af::array angles = 2 * ifs::PI * (coord(af::span, 4)) - ifs::PI;
-
-            // af::array angle_cost = angle_weight * af::sum(
-            //     af::pow(angles - af::approx2(gradient_img, x, y), 2));
-
-            total_cost += overlap_weight * af::sum(af::sum(overlap_cost));
-            bw_img = n_img;
-        }
         
-        // punish for not filling the edges
-        af::array grad_cost = af::sum(
-            grad_weight * af::sum(grad_weight * bw_img * !bw_gradient));
+        af::array bw_img = make_image_bw(coord);
+        af::array bw_target = (target_img > 0.01f);
 
+        // punish for not filling the inside area 
         af::array area_cost = area_weight * af::sum(af::sum(bw_target * !bw_img));
+        // punish for filling the outside area
         af::array cost = cost_weight * af::sum(af::sum(!bw_target * bw_img));
 
-        costs(j) = total_cost + cost + grad_cost + area_cost;
+        costs(j) = cost + area_cost;
     }
     
     return -costs;
