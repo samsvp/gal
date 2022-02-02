@@ -1,6 +1,7 @@
 #include <cstring>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <iostream>
 #include <filesystem>
 #include <arrayfire.h>
@@ -22,24 +23,52 @@ const char* parse_option(const char* option, const char* deflt,
     return deflt;
 }
 
+
+template<typename T>
+T parse_option(const char* option, T deflt, 
+    int argc, char**argv)
+{
+    for (int i=1; i<argc; i++)
+    {
+        if (std::strcmp(argv[i], option) == 0)
+        {
+            std::stringstream ss(argv[i+1]);
+            T t;
+            ss >> t;
+            return t;
+        }
+    }
+    return deflt;
+}
+
+
 int main(int argc, char **argv)
 {
 
-    // parse arguments
-    const char* obj_dir = parse_option("-o", "../imgs/test/Selos", argc, argv);
-    const char* img_path = parse_option("-i", "../imgs/reserva_t.png", argc, argv);
+    /* parse arguments */
+    // files
+    const char* obj_dir = parse_option("-d", "../imgs/test/Selos", argc, argv);
+    const char* img_path = parse_option("-t", "../imgs/reserva_t.png", argc, argv);
     const char* save_name = parse_option("-s", "../imgs/packer_out.png", argc, argv);
-    
+
+    // metaparameters
+    float scale = parse_option("-r", 0.05f, argc, argv);
+    int pop_size = parse_option("-p", 100, argc, argv);
+    int max_objs = parse_option("-o", 120, argc, argv);
+    int iters = parse_option("i", 800, argc, argv);
+    float mutation_rate = parse_option("-m", 0.001f, argc, argv);
+
+    std::cout << "\nStarting with parameters: scale " << scale <<
+        ", population size " << pop_size << ", max objects " << max_objs <<
+        ", iterations " << iters << ", mutation rate " << mutation_rate << std::endl;
+
+    std::cout << "\nObjects directory " << obj_dir << ", target image path " <<
+        img_path << ", output name " << save_name << "\n" << std::endl;
 
     std::vector<std::string> obj_pths;
     for (const auto & entry : fs::directory_iterator(obj_dir))
         obj_pths.push_back(entry.path());
 
-    float scale = 0.05f;
-    int pop_size = 100;
-    int max_objs = 120;
-    int iters = 800;
-    float mutation_rate = 0.001f;
     Packer packer(img_path, obj_pths, scale);
     af::array current_img = packer.run(pop_size, max_objs, mutation_rate, iters);
 

@@ -70,7 +70,7 @@ Packer::Packer(const char* target_path,
     // load img objects
     for (std::string& obj_path : objs_path)
     {
-        std::cout << obj_path << std::endl;
+        std::cout << "Loaded image " << obj_path << std::endl;
         af::array _img = af::loadImage(obj_path.c_str(), 1) / 255.f;
          // resize just to hold less stuff
         af::array _res_img = af::resize(scale, _img);
