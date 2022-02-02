@@ -55,7 +55,7 @@ int main(int argc, char **argv)
     float scale = parse_option("-r", 0.05f, argc, argv);
     int pop_size = parse_option("-p", 100, argc, argv);
     int max_objs = parse_option("-o", 120, argc, argv);
-    int iters = parse_option("i", 800, argc, argv);
+    int iters = parse_option("-i", 800, argc, argv);
     float mutation_rate = parse_option("-m", 0.001f, argc, argv);
 
     std::cout << "\nStarting with parameters: scale " << scale <<
