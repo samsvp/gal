@@ -20,7 +20,7 @@ class Packer : public Score
 public:
     Packer(const char* target_path,
         std::vector<std::string> objs_path,
-        bool norm_imgs);
+        float scale);
     ~Packer();
 
     const af::array fitness_func(af::array coords) override;
@@ -30,7 +30,7 @@ public:
      * solution.
      */
     af::array run(int pop_size, int max_objs, 
-        float mutation_rate, int iters=100);
+        float mutation_rate, int iters=100, bool show_cost=false);
 
     // cost function weights
     float area_weight = 800;
@@ -54,7 +54,7 @@ private:
 
 Packer::Packer(const char* target_path,
     std::vector<std::string> objs_path,
-    bool norm_imgs)
+    float scale)
 {
     af::array _target_img = af::loadImage(target_path, 1) / 255.f;
 
@@ -73,7 +73,7 @@ Packer::Packer(const char* target_path,
         std::cout << obj_path << std::endl;
         af::array _img = af::loadImage(obj_path.c_str(), 1) / 255.f;
          // resize just to hold less stuff
-        af::array _res_img = af::resize(0.05f, _img);
+        af::array _res_img = af::resize(scale, _img);
         object_set.push_back(_res_img);
     }
 }
@@ -86,7 +86,7 @@ Packer::~Packer()
 
 
 af::array Packer::run(int pop_size, int max_objs, 
-    float mutation_rate, int iters)
+    float mutation_rate, int iters, bool show_cost)
 {
     std::random_device dev;
     std::mt19937 rng(dev());
@@ -109,14 +109,17 @@ af::array Packer::run(int pop_size, int max_objs,
 
     best = af::reorder(best, 1, 2, 0);
 
-    af::array img = make_image_bw(best);
+    if (show_cost)
+    {
+        af::array img = make_image_bw(best);
 
-    const af::array bw_image = (img(af::span, af::span, 0) > 0.001f);
-    const af::array bw_target = (target_img > 0.001f);
-    af::array cost = (bw_image + target_img) * (!bw_image + !target_img);
+        const af::array bw_image = (img(af::span, af::span, 0) > 0.001f);
+        const af::array bw_target = (target_img > 0.001f);
+        af::array cost = (bw_image + target_img) * (!bw_image + !target_img);
 
-    af::Window wnd("Preliminary result");
-        while (!wnd.close()) wnd.image(cost);
+        af::Window wnd("Preliminary result");
+            while (!wnd.close()) wnd.image(cost);
+    }
 
     return make_image(best);
 }
@@ -148,8 +151,7 @@ af::array Packer::make_image(af::array metainfo) const
 
 
 af::array Packer::make_image_bw(af::array coord) const
-{
-        
+{     
     int img_size_x = target_img.dims(0);
     int img_size_y = target_img.dims(1);
     
