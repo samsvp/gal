@@ -3,5 +3,5 @@ if [ ! -d build ]; then
 fi
 
 cd build
-make -DCMAKE_BUILD_TYPE=Release ..
+cmake -DCMAKE_BUILD_TYPE=Debug ..
 make VERBOSE=1
