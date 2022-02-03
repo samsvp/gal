@@ -9,7 +9,7 @@ class Score
 {
 public:
     const virtual af::array fitness_func(af::array)=0;
-    const virtual void callback(af::array arr, int i) {}
+    const virtual void callback(af::array best, int i) {}
 };
 
 

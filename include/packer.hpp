@@ -189,14 +189,13 @@ af::array Packer::make_image_bw(af::array coord) const
 }
 
 
-const void Packer::callback(af::array best, int i)
+const void Packer::callback(af::array best, int i) 
 {
     af::array current_img = make_image(af::reorder(best, 1, 2, 0));
 
     af::array mimg = (current_img * 255).as(u8);
-    int a = 10;
     std::stringstream ss;
-    ss << a;
+    ss << i;
     std::string str = ss.str();
     std::string prefix = "iter_";
     std::string ext = ".png";
