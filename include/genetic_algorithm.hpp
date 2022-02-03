@@ -9,6 +9,7 @@ class Score
 {
 public:
     const virtual af::array fitness_func(af::array)=0;
+    const virtual void callback(af::array arr, int i) {}
 };
 
 
@@ -21,7 +22,7 @@ public:
     /*
      * Runs the algorithm
      */
-    void run(Score& score);
+    void run(Score& score, bool callback=0);
     /*
      * Returns the best population individual
      */
@@ -92,12 +93,16 @@ GeneticAlgorithm::~GeneticAlgorithm()
 }
 
 
-void GeneticAlgorithm::run(Score& score)
+void GeneticAlgorithm::run(Score& score, bool callback)
 {
     for (int i = 0; i < iters; i++)
     {
         selection(score);
         mutate();
+
+        if (callback && i % 50 == 0)
+            score.callback(best, i);
+        
 
         #ifndef NDEBUG
         if (i % 20 == 0)

@@ -70,10 +70,10 @@ int main(int argc, char **argv)
         obj_pths.push_back(entry.path());
 
     Packer packer(img_path, obj_pths, scale);
-    af::array current_img = packer.run(pop_size, max_objs, mutation_rate, iters);
+    af::array current_img = packer.run(pop_size, max_objs, mutation_rate, iters, 0, 1);
 
     af::array mimg = (current_img * 255).as(u8);
-    af::saveImageNative("../imgs/test1.png", mimg);
+    af::saveImageNative(save_name, mimg);
 
     af::Window wnd("Preliminary result");
         while (!wnd.close()) wnd.image(current_img);

@@ -24,13 +24,15 @@ public:
     ~Packer();
 
     const af::array fitness_func(af::array coords) override;
+    const void callback(af::array coords, int i) override;
 
     /*
      * Runs the algorithm and returns the best
      * solution.
      */
     af::array run(int pop_size, int max_objs, 
-        float mutation_rate, int iters=100, bool show_cost=false);
+        float mutation_rate, int iters=100, 
+        bool show_cost=false, bool cb=false);
 
     // cost function weights
     float area_weight = 800;
@@ -86,7 +88,8 @@ Packer::~Packer()
 
 
 af::array Packer::run(int pop_size, int max_objs, 
-    float mutation_rate, int iters, bool show_cost)
+    float mutation_rate, int iters, bool show_cost,
+    bool cb)
 {
     std::random_device dev;
     std::mt19937 rng(dev());
@@ -104,7 +107,7 @@ af::array Packer::run(int pop_size, int max_objs,
     GeneticAlgorithm gal(pop_size, max_objs, 4,
         mutation_rate, iters);
 
-    gal.run(*this);
+    gal.run(*this, cb);
     af::array best = gal.get_best();
 
     best = af::reorder(best, 1, 2, 0);
@@ -183,6 +186,22 @@ af::array Packer::make_image_bw(af::array coord) const
     }
     
     return bw_img;
+}
+
+
+const void Packer::callback(af::array best, int i)
+{
+    af::array current_img = make_image(af::reorder(best, 1, 2, 0));
+
+    af::array mimg = (current_img * 255).as(u8);
+    int a = 10;
+    std::stringstream ss;
+    ss << a;
+    std::string str = ss.str();
+    std::string prefix = "iter_";
+    std::string ext = ".png";
+    std::string filename = prefix + str + ext;
+    af::saveImageNative(filename.c_str(), mimg);
 }
 
 
