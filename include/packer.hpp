@@ -33,6 +33,12 @@ public:
     af::array run(int pop_size, int max_objs, 
         float mutation_rate, int iters=100, 
         bool show_cost=false, bool cb=false);
+    /*
+    * Saves the given array elements into a txt file.
+    * The first line is the array original shape
+    * while the others are the content of the array
+    */
+    const void save_array(af::array arr, const char* filename="out.txt");
 
     // cost function weights
     float area_weight = 800;
@@ -47,6 +53,7 @@ private:
      */
     af::array make_image(af::array coords) const;
     af::array make_image_bw(af::array coords) const;
+    std::vector<std::string> image_paths; // Path to the images used
     std::vector<af::array> object_set; // make a pure af::array later
     std::vector<af::array> objects_bw; // make a pure af::array later
     std::vector<af::array> objects; // make a pure af::array later
@@ -69,6 +76,7 @@ Packer::Packer(const char* target_path,
     // normalize values
     target_img /= af::max<float>(target_img);
 
+    image_paths = objs_path;
     // load img objects
     for (std::string& obj_path : objs_path)
     {
@@ -201,6 +209,9 @@ const void Packer::callback(af::array best, int i)
     std::string ext = ".png";
     std::string filename = prefix + str + ext;
     af::saveImageNative(filename.c_str(), mimg);
+
+    ext = ".txt";
+    save_array(best, (prefix + str + ext).c_str());
 }
 
 
@@ -231,4 +242,39 @@ const af::array Packer::fitness_func(af::array coords)
     }
     
     return -costs;
+}
+
+
+
+const void Packer::save_array(af::array arr, const char* filename)
+{
+    std::ofstream outfile(filename);
+
+    // metadata
+    outfile << "dna_dims:" << std::endl;
+    outfile << "\t" << arr.dims() << std::endl;
+    outfile << "end" << std::endl;
+
+    // image original dims
+    outfile << "target_dims:" << std::endl;
+    outfile << "\t" << target_img.dims() << std::endl;
+    outfile << "end" << std::endl;
+
+    // image files
+    outfile << "imgs_path:" << std::endl;
+    for (auto &image_path : image_paths)
+        outfile << "\t" << image_path << std::endl;
+    outfile << "end" << std::endl;
+
+    // data
+    outfile << "genes:" << std::endl;
+    float *genes = arr.host<float>();
+    for(int i = 0; i < arr.elements(); i++) 
+    {
+        outfile << "\t" << genes[i] << std::endl;
+    }
+    outfile << "end" << std::endl;
+
+    // free memory from the cpu
+    af::freeHost(genes);
 }
