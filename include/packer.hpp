@@ -211,7 +211,7 @@ const void Packer::callback(af::array best, int i)
     af::saveImageNative(filename.c_str(), mimg);
 
     ext = ".txt";
-    save_array(best, (prefix + str + ext).c_str());
+    save_array(af::reorder(best, 1, 2, 0), (prefix + str + ext).c_str());
 }
 
 
