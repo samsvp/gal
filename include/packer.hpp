@@ -54,6 +54,7 @@ private:
     af::array make_image(af::array coords) const;
     af::array make_image_bw(af::array coords) const;
     std::vector<std::string> image_paths; // Path to the images used
+    std::vector<std::string> objects_paths; // Path to the images used
     std::vector<af::array> object_set; // make a pure af::array later
     std::vector<af::array> objects_bw; // make a pure af::array later
     std::vector<af::array> objects; // make a pure af::array later
@@ -110,6 +111,7 @@ af::array Packer::run(int pop_size, int max_objs,
         objects.push_back(object_set[r]);
         af::array bw_obj = (object_set[r] > 0.01);
         objects_bw.push_back(bw_obj(af::span, af::span, 0));
+        objects_paths.push_back(image_paths[r]);
     }    
 
     GeneticAlgorithm gal(pop_size, max_objs, 4,
@@ -261,9 +263,9 @@ const void Packer::save_array(af::array arr, const char* filename)
     outfile << "end" << std::endl;
 
     // image files
-    outfile << "imgs_path:" << std::endl;
-    for (auto &image_path : image_paths)
-        outfile << "\t" << image_path << std::endl;
+    outfile << "objs_path:" << std::endl;
+    for (auto &obj_path : objects_paths)
+        outfile << "\t" << obj_path << std::endl;
     outfile << "end" << std::endl;
 
     // data
