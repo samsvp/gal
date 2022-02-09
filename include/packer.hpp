@@ -55,19 +55,24 @@ private:
      */
     af::array make_image(af::array coords) const;
     af::array make_image_bw(af::array coords) const;
+    
     std::vector<std::string> image_paths; // Path to the images used
     std::vector<std::string> objects_paths; // Path to the images used
+    
     std::vector<af::array> object_set; // make a pure af::array later
     std::vector<af::array> objects_bw; // make a pure af::array later
     std::vector<af::array> objects; // make a pure af::array later
+    
     af::array result;
     af::array target_img;
+    
+    float scale; // scale used to resize images
 };
 
 
 Packer::Packer(const char* target_path,
     std::vector<std::string> objs_path,
-    float scale)
+    float scale) : scale(scale)
 {
     af::array _target_img = af::loadImage(target_path, 1) / 255.f;
 
@@ -267,31 +272,45 @@ const void Packer::save_array(af::array arr, const char* filename)
 {
     std::ofstream outfile(filename);
 
+    auto add_to_file = [&outfile](std::string title, auto data, auto to_write) {
+        outfile << title << ":" << std::endl;
+        to_write(data, outfile);
+        outfile << "end" << std::endl;
+    };
+
     // metadata
-    outfile << "dna_dims:" << std::endl;
-    outfile << "\t" << arr.dims() << std::endl;
-    outfile << "end" << std::endl;
-
+    add_to_file("dna_dims", arr, [](af::array arr, std::ofstream& outfile){
+        outfile << "\t" << arr.dims() << std::endl;
+    });
+    
     // image original dims
-    outfile << "target_dims:" << std::endl;
-    outfile << "\t" << target_img.dims() << std::endl;
-    outfile << "end" << std::endl;
+    add_to_file("target_img_dims", target_img, 
+        [](af::array target_img, std::ofstream& outfile){
+            outfile << "\t" << target_img.dims() << std::endl;
+        });
 
+    // images rescale
+    add_to_file("scale", scale, [](float scale, std::ofstream& outfile){
+        outfile << "\t" << scale << std::endl;
+    });
+    
     // image files
-    outfile << "objs_path:" << std::endl;
-    for (auto &obj_path : objects_paths)
-        outfile << "\t" << obj_path << std::endl;
-    outfile << "end" << std::endl;
+    add_to_file("objs_path", objects_paths, [](auto objects_paths, std::ofstream& outfile){
+        for (auto &obj_path : objects_paths)
+            outfile << "\t" << obj_path << std::endl;
+    });
+
 
     // data
-    outfile << "genes:" << std::endl;
-    float *genes = arr.host<float>();
-    for(int i = 0; i < arr.elements(); i++) 
-    {
-        outfile << "\t" << genes[i] << std::endl;
-    }
-    outfile << "end" << std::endl;
+    add_to_file("genes", arr, [](af::array arr, std::ofstream& outfile){
+        float *genes = arr.host<float>();
+        for(int i = 0; i < arr.elements(); i++) 
+        {
+            outfile << "\t" << genes[i] << std::endl;
+        }
 
-    // free memory from the cpu
-    af::freeHost(genes);
+        // free memory from the cpu
+        af::freeHost(genes);
+    });
+
 }
