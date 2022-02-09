@@ -50,6 +50,7 @@ int main(int argc, char **argv)
     const char* obj_dir = parse_option("-d", "../imgs/test/Selos", argc, argv);
     const char* img_path = parse_option("-t", "../imgs/reserva_t.png", argc, argv);
     const char* save_name = parse_option("-s", "../imgs/packer_out.png", argc, argv);
+    int callback = parse_option("-c", 1, argc, argv);
 
     // metaparameters
     float scale = parse_option("-r", 0.05f, argc, argv);
@@ -60,7 +61,8 @@ int main(int argc, char **argv)
 
     std::cout << "\nStarting with parameters: scale " << scale <<
         ", population size " << pop_size << ", max objects " << max_objs <<
-        ", iterations " << iters << ", mutation rate " << mutation_rate << std::endl;
+        ", iterations " << iters << ", mutation rate " << mutation_rate << 
+        ", callback: " << callback << std::endl;
 
     std::cout << "\nObjects directory " << obj_dir << ", target image path " <<
         img_path << ", output name " << save_name << "\n" << std::endl;
@@ -70,10 +72,8 @@ int main(int argc, char **argv)
         obj_pths.push_back(entry.path());
 
     Packer packer(img_path, obj_pths, scale);
-    af::array current_img = packer.run(pop_size, max_objs, mutation_rate, iters, 0, 1);
-
-    af::array mimg = (current_img * 255).as(u8);
-    af::saveImageNative(save_name, mimg);
+    af::array current_img = packer.run(pop_size, max_objs, mutation_rate, iters, 0, callback);
+    packer.save(save_name);
 
     af::Window wnd("Preliminary result");
         while (!wnd.close()) wnd.image(current_img);
