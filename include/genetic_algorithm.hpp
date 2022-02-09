@@ -106,7 +106,10 @@ void GeneticAlgorithm::run(Score& score, bool callback)
 
         #ifndef NDEBUG
         if (i % 20 == 0)
+        {
             std::cout << "iteration: " << i << std::endl;
+            std::cout << "Best score " << best_score << std::endl;
+        }
         #endif
     }
 }
@@ -139,10 +142,6 @@ void GeneticAlgorithm::selection(Score& score)
     {
         best = pop_best;
         best_score = pop_best_score;
-
-        #ifndef NDEBUG
-        std::cout << "New best score " << best_score << std::endl;
-        #endif
     }
 }
 

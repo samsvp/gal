@@ -59,10 +59,17 @@ int main(int argc, char **argv)
     int iters = parse_option("-i", 800, argc, argv);
     float mutation_rate = parse_option("-m", 0.001f, argc, argv);
 
+    // weights
+    float area_weight = parse_option("-a", 800, argc, argv);
+    float out_weight = parse_option("-w", 50, argc, argv);
+
     std::cout << "\nStarting with parameters: scale " << scale <<
         ", population size " << pop_size << ", max objects " << max_objs <<
         ", iterations " << iters << ", mutation rate " << mutation_rate << 
         ", callback: " << callback << std::endl;
+
+    std::cout << "\nWeights :" << obj_dir << ", area weight " <<
+        area_weight << ", out weight " << out_weight << "\n" << std::endl;
 
     std::cout << "\nObjects directory " << obj_dir << ", target image path " <<
         img_path << ", output name " << save_name << "\n" << std::endl;
@@ -72,7 +79,11 @@ int main(int argc, char **argv)
         obj_pths.push_back(entry.path());
 
     Packer packer(img_path, obj_pths, scale);
+    packer.area_weight = area_weight;
+    packer.out_weight = out_weight;
+    
     af::array current_img = packer.run(pop_size, max_objs, mutation_rate, iters, 0, callback);
+    
     packer.save(save_name);
 
     af::Window wnd("Preliminary result");

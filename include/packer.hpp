@@ -44,9 +44,7 @@ public:
 
     // cost function weights
     float area_weight = 800;
-    float cost_weight = 50;
-    float fill_weight = 5;
-    float angle_weight = 500;
+    float out_weight = 50;
 
 private:
     /*
@@ -243,12 +241,12 @@ const af::array Packer::fitness_func(af::array coords)
         af::array coord = af::reorder(coords(j, af::span), 1, 2, 0);
         
         af::array bw_img = make_image_bw(coord);
-        af::array bw_target = (target_img > 0.01f);
+        // af::array bw_target = (target_img > 0.01f);
 
         // punish for not filling the inside area 
-        af::array area_cost = area_weight * af::sum(af::sum(bw_target * !bw_img));
+        af::array area_cost = area_weight * af::sum(af::sum(target_img * !bw_img));
         // punish for filling the outside area
-        af::array cost = cost_weight * af::sum(af::sum(!bw_target * bw_img));
+        af::array cost = out_weight * af::sum(af::sum(!target_img * bw_img));
 
         costs(j) = cost + area_cost;
     }
@@ -300,7 +298,6 @@ const void Packer::save_array(af::array arr, const char* filename)
             outfile << "\t" << obj_path << std::endl;
     });
 
-
     // data
     add_to_file("genes", arr, [](af::array arr, std::ofstream& outfile){
         float *genes = arr.host<float>();
@@ -312,5 +309,4 @@ const void Packer::save_array(af::array arr, const char* filename)
         // free memory from the cpu
         af::freeHost(genes);
     });
-
 }
