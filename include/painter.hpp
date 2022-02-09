@@ -138,7 +138,7 @@ af::array Painter::make_image(af::array metainfo,
 
         af::array _target_img = target_image;
 
-        img = ifs::add_imgs(mbrush, img, x, y, 1, angle,
+        img = ifs::add_imgs(mbrush, img, x, y, 0, 0, 1, angle,
             [&_target_img](af::array mbrush, af::array _1, af::array x, af::array y, af::array _2)
             {
                 int size_x = mbrush.dims(0);

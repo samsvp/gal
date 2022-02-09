@@ -23,15 +23,22 @@ namespace ifs
 
     af::array add_imgs(af::array& foreground, 
         af::array& background, af::array _x, 
-        af::array _y, bool rotate, float _angle,
+        af::array _y, float scale,
+        bool resize, bool rotate, float _angle,
         std::function<af::array(
             af::array&, af::array&, af::array&, af::array&, af::array&)> f,
         bool skip_f=0)
     {
+        
         if (rotate)
         {
             float angle = 2 * PI * _angle - PI;
-            foreground = af::rotate(foreground, angle, 0);
+            foreground = af::rotate(foreground, angle, 0, AF_INTERP_BICUBIC);
+        }
+
+        if (resize)
+        {
+            af::resize(scale, foreground, AF_INTERP_BILINEAR);
         }
 
         int img_size_x = background.dims(0);
@@ -59,10 +66,11 @@ namespace ifs
 
     af::array add_imgs(af::array& foreground, 
         af::array& background, af::array _x, 
-        af::array _y, bool rotate, float angle)
+        af::array _y, float scale,
+        bool resize, bool rotate, float angle)
     {
-        return add_imgs(foreground, background, _x, _y,
-            rotate, angle, [](af::array& _1, af::array& _2,
+        return add_imgs(foreground, background, _x, _y, scale,
+            resize, rotate, angle, [](af::array& _1, af::array& _2,
             af::array& _3, af::array& _4, af::array& _5){return _1;}, 1);
     }
 }

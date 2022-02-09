@@ -84,7 +84,7 @@ Packer::Packer(const char* target_path,
         std::cout << "Loaded image " << obj_path << std::endl;
         af::array _img = af::loadImage(obj_path.c_str(), 1) / 255.f;
          // resize just to hold less stuff
-        af::array _res_img = af::resize(scale, _img);
+        af::array _res_img = af::resize(scale, _img, AF_INTERP_BILINEAR);
         object_set.push_back(_res_img);
     }
 }
@@ -151,12 +151,14 @@ af::array Packer::make_image(af::array metainfo) const
 
     for (int i=0; i<metainfo.dims(0); i++)
     {
-        af::array foreground = af::resize(af::sum<float>(0.7f * metainfo(i, 2)+0.3), objects[i]);
-
+        float scale = af::sum<float>(0.7f * metainfo(i, 2)+0.3);
         float angle = af::sum<float>(metainfo(i, 3));
+        
+        af::array foreground = objects[i];
+        
         af::array x = metainfo(i, 0);
         af::array y = metainfo(i, 1);
-        img = ifs::add_imgs(foreground, img, x, y, 1, angle);
+        img = ifs::add_imgs(foreground, img, x, y, scale, 1, 1, angle);
     }
     
     return img;
