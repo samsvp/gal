@@ -5,8 +5,6 @@ import skimage
 
 from typing import List, Tuple
 
-SCALE = 0.05
-
 
 def get_angles(genes: np.ndarray) -> np.ndarray:
     angles = genes[:,3].reshape(-1)
@@ -40,12 +38,13 @@ def load_data(filepath: str) -> \
         data[0].split(":")[-1].split(" ")]
     og_dims = [int(d) for d in 
         data[1].split(":")[-1].split(" ")]
+    scale = float(data[2].split(":")[-1])
     img_files = [d.replace("\t","") for d in 
-        data[2].split(":")[-1].split("\n") if d]
+        data[3].split(":")[-1].split("\n") if d]
     flat_genes = np.array([float(d) for d in 
-        data[3].split(":")[-1].split("\n") if d])
+        data[4].split(":")[-1].split("\n") if d])
     genes = flat_genes.reshape(dna_dims)
-    return (og_dims, img_files, genes)
+    return (og_dims, scale, img_files, genes)
 
     
 def add_imgs(img1: np.ndarray, img2: np.ndarray) \
@@ -88,7 +87,7 @@ def get_section(img:np.ndarray, _x: int, _y: int,
 
 
 def create_img(genes: np.ndarray, img_files: List[str],
-        target_size: Tuple[int, int]) -> np.ndarray:
+        target_size: Tuple[int, int], og_scale: float) -> np.ndarray:
     """
     Creates the image using the given metadata
     """
@@ -109,7 +108,7 @@ def create_img(genes: np.ndarray, img_files: List[str],
             Rotates and resizes the image    
             """
             obj = resize(rotate(_obj, angle),
-                scale * SCALE)
+                scale * og_scale)
             return obj
 
         obj = transform(objs[i], scales[i], angles[i])
@@ -135,8 +134,7 @@ def create_img(genes: np.ndarray, img_files: List[str],
 # %%
 if __name__ == "__main__":
     # example usage: 
-    # python3 make_img.py --path ../build/iter_0.txt \
-    #           -r 2 -z 0.05
+    # python3 make_img.py --path ../build/out_genes.txt -r 2
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--path", 
         type=str, help="File to read metadata from")
@@ -144,17 +142,14 @@ if __name__ == "__main__":
         type=str, help="Path to save image")
     parser.add_argument("-r", "--resize", default=1,
         type=float, help="Resize the original target image")
-    parser.add_argument("-z", "--scale", default=1,
-        type=float, help="Scale the value of the original metadata")
 
     args = parser.parse_args()
     
     print(f"{args}")
 
-    og_dims, img_files, genes = load_data(args.path)
+    og_dims, scale, img_files, genes = load_data(args.path)
     target_size = (args.resize * np.array(og_dims)).astype(int)
-    SCALE = args.scale
-    img = create_img(genes, img_files, target_size)
+    img = create_img(genes, img_files, target_size, scale)
     skimage.io.imsave(args.save_path, img / 255)
 
 # %%
