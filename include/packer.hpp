@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fstream>
 #include <random>
 #include <vector>
 #include <string>
@@ -33,6 +34,7 @@ public:
     af::array run(int pop_size, int max_objs, 
         float mutation_rate, int iters=100, 
         bool show_cost=false, bool cb=false);
+    const void save(const char* save_name);
     /*
     * Saves the given array elements into a txt file.
     * The first line is the array original shape
@@ -58,6 +60,7 @@ private:
     std::vector<af::array> object_set; // make a pure af::array later
     std::vector<af::array> objects_bw; // make a pure af::array later
     std::vector<af::array> objects; // make a pure af::array later
+    af::array result;
     af::array target_img;
 };
 
@@ -120,11 +123,11 @@ af::array Packer::run(int pop_size, int max_objs,
     gal.run(*this, cb);
     af::array best = gal.get_best();
 
-    best = af::reorder(best, 1, 2, 0);
+    result = af::reorder(best, 1, 2, 0);
 
     if (show_cost)
     {
-        af::array img = make_image_bw(best);
+        af::array img = make_image_bw(result);
 
         const af::array bw_image = (img(af::span, af::span, 0) > 0.001f);
         const af::array bw_target = (target_img > 0.001f);
@@ -134,7 +137,7 @@ af::array Packer::run(int pop_size, int max_objs,
             while (!wnd.close()) wnd.image(cost);
     }
 
-    return make_image(best);
+    return make_image(result);
 }
 
 
@@ -153,7 +156,7 @@ af::array Packer::make_image(af::array metainfo) const
     {
         float scale = af::sum<float>(0.7f * metainfo(i, 2)+0.3);
         float angle = af::sum<float>(metainfo(i, 3));
-        
+
         af::array foreground = objects[i];
         
         af::array x = metainfo(i, 0);
@@ -248,6 +251,16 @@ const af::array Packer::fitness_func(af::array coords)
     return -costs;
 }
 
+
+const void Packer::save(const char* save_name) 
+{
+    af::array current_img = make_image(result);
+
+    af::array mimg = (current_img * 255).as(u8);
+    af::saveImageNative(save_name, mimg);
+
+    save_array(result, "out_genes.txt");
+}
 
 
 const void Packer::save_array(af::array arr, const char* filename)
