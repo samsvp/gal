@@ -7,7 +7,7 @@ from typing import List, Tuple
 
 
 def get_angles(genes: np.ndarray) -> np.ndarray:
-    angles = genes[:,3].reshape(-1)
+    angles = genes[3,:].reshape(-1)
     return 2 * np.pi * angles - np.pi
 
 
@@ -15,14 +15,14 @@ def get_scale(genes: np.ndarray,
         og_size: Tuple[int, int],
         target_size: Tuple[int, int]) -> np.ndarray:
     r = target_size[0] / og_size[0]
-    scales = genes[:,2].reshape(-1) * r
+    scales = genes[2,:].reshape(-1)
     return (0.7 * scales + 0.3) * r
 
 
 def get_xy(genes: np.ndarray) -> \
         Tuple[np.ndarray, np.ndarray]:
-    x = genes[:,0].reshape(-1)
-    y = genes[:,1].reshape(-1)
+    x = genes[1,:].reshape(-1)
+    y = genes[0,:].reshape(-1)
     return (x, y)
 
 
@@ -43,16 +43,8 @@ def load_data(filepath: str) -> \
         data[3].split(":")[-1].split("\n") if d]
     flat_genes = np.array([float(d) for d in 
         data[4].split(":")[-1].split("\n") if d])
-    genes = flat_genes.reshape(dna_dims)
+    genes = flat_genes.reshape(dna_dims[:2][::-1])
     return (og_dims, scale, img_files, genes)
-
-    
-def add_imgs(img1: np.ndarray, img2: np.ndarray) \
-        -> np.ndarray:
-    """
-    """
-    mask = img2[:,:,-1].astype(bool)[...,None]
-    return img1 * (1 - mask) + img2 * mask
 
 
 def resize(img: np.ndarray, s: float) -> np.ndarray:
@@ -72,18 +64,6 @@ def rotate(img: np.ndarray, rad_angle: float) -> np.ndarray:
     angle = np.rad2deg(rad_angle)
     r = skimage.transform.rotate(img / 255, angle, 1)
     return (r * 255).astype(int)
-
-
-
-def get_section(img:np.ndarray, _x: int, _y: int, 
-        size_x: int, size_y: int) -> np.ndarray:
-    """
-    Gets the image section contained within
-    x + size_x, y + size_y
-    """
-    x = int(_x * size_x)
-    y = int(_y * size_y)
-    return img[y:y+size_y,x:x+size_x,:]
 
 
 def create_img(genes: np.ndarray, img_files: List[str],
@@ -151,5 +131,3 @@ if __name__ == "__main__":
     target_size = (args.resize * np.array(og_dims)).astype(int)
     img = create_img(genes, img_files, target_size, scale)
     skimage.io.imsave(args.save_path, img / 255)
-
-# %%
