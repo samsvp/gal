@@ -1,9 +1,10 @@
 #pragma once
 
-#include <fstream>
+#include <regex>
 #include <random>
 #include <vector>
 #include <string>
+#include <fstream>
 #include <numeric>
 #include <algorithm>
 #include <arrayfire.h>
@@ -262,7 +263,8 @@ const void Packer::save(const char* save_name)
     af::array mimg = (current_img * 255).as(u8);
     af::saveImageNative(save_name, mimg);
 
-    save_array(result, "out_genes.txt");
+    std::string arr_name = std::regex_replace(save_name, std::regex(".png"), ".txt");
+    save_array(result, arr_name.c_str());
 }
 
 

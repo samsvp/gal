@@ -33,7 +33,8 @@ namespace ifs
         if (rotate)
         {
             float angle = 2 * PI * _angle - PI;
-            foreground = af::rotate(foreground, angle, 0, AF_INTERP_BICUBIC);
+            foreground = af::rotate(foreground, angle, 0, 
+                AF_INTERP_BICUBIC_SPLINE);
         }
 
         if (resize)

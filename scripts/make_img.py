@@ -67,12 +67,13 @@ def rotate(img: np.ndarray, rad_angle: float) -> np.ndarray:
 
 
 def create_img(genes: np.ndarray, img_files: List[str],
-        target_size: Tuple[int, int], og_scale: float) -> np.ndarray:
+        target_size: Tuple[int, int], og_scale: float,
+        rescale: float=1.0) -> np.ndarray:
     """
     Creates the image using the given metadata
     """
     angles = get_angles(genes)
-    scales = get_scale(genes, og_dims, target_size)
+    scales = get_scale(genes, og_dims, target_size) * rescale
     x, y = get_xy(genes)
 
     res_img = np.zeros(
@@ -122,6 +123,8 @@ if __name__ == "__main__":
         type=str, help="Path to save image")
     parser.add_argument("-r", "--resize", default=1,
         type=float, help="Resize the original target image")
+    parser.add_argument("-rs", "--rescale", default=1,
+        type=float, help="Rescales the original objects image")
 
     args = parser.parse_args()
     
@@ -129,5 +132,5 @@ if __name__ == "__main__":
 
     og_dims, scale, img_files, genes = load_data(args.path)
     target_size = (args.resize * np.array(og_dims)).astype(int)
-    img = create_img(genes, img_files, target_size, scale)
+    img = create_img(genes, img_files, target_size, scale, args.rescale)
     skimage.io.imsave(args.save_path, img / 255)

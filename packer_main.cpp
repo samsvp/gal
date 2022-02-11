@@ -68,7 +68,7 @@ int main(int argc, char **argv)
         ", iterations " << iters << ", mutation rate " << mutation_rate << 
         ", callback: " << callback << std::endl;
 
-    std::cout << "\nWeights :" << obj_dir << ", area weight " <<
+    std::cout << "\nWeights :area weight " <<
         area_weight << ", out weight " << out_weight << "\n" << std::endl;
 
     std::cout << "\nObjects directory " << obj_dir << ", target image path " <<
