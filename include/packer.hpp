@@ -22,7 +22,7 @@ class Packer : public Score
 public:
     Packer(const char* target_path,
         std::vector<std::string> objs_path,
-        float scale);
+        float scale, float rotate);
     ~Packer();
 
     const af::array fitness_func(af::array coords) override;
@@ -66,12 +66,14 @@ private:
     af::array target_img;
     
     float scale; // scale used to resize images
+    bool rotate; // true if images should be rotated
 };
 
 
 Packer::Packer(const char* target_path,
     std::vector<std::string> objs_path,
-    float scale) : scale(scale)
+    float scale, float rotate) : 
+        scale(scale), rotate(rotate)
 {
     af::array _target_img = af::loadImage(target_path, 1) / 255.f;
 
@@ -159,7 +161,7 @@ af::array Packer::make_image(af::array metainfo) const
     for (int i=0; i<metainfo.dims(0); i++)
     {
         float scale = af::sum<float>(0.7f * metainfo(i, 2)+0.3);
-        float angle = af::sum<float>(metainfo(i, 3));
+        float angle = rotate * af::sum<float>(metainfo(i, 3));
 
         af::array foreground = objects[i];
         
@@ -188,7 +190,7 @@ af::array Packer::make_image_bw(af::array coord) const
         int size_x = foreground.dims(0);
         int size_y = foreground.dims(1);
 
-        float angle = af::sum<float>(coord(i, 3));
+        float angle = rotate * af::sum<float>(coord(i, 3));
         af::array _x = coord(i, 0);
         af::array _y = coord(i, 1);
 

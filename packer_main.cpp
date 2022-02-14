@@ -58,6 +58,7 @@ int main(int argc, char **argv)
     int max_objs = parse_option("-o", 120, argc, argv);
     int iters = parse_option("-i", 800, argc, argv);
     float mutation_rate = parse_option("-m", 0.001f, argc, argv);
+    bool angle = parse_option("-a", 1, argc, argv);
 
     // weights
     float area_weight = parse_option("-a", 800, argc, argv);
@@ -78,7 +79,7 @@ int main(int argc, char **argv)
     for (const auto & entry : fs::directory_iterator(obj_dir))
         obj_pths.push_back(entry.path());
 
-    Packer packer(img_path, obj_pths, scale);
+    Packer packer(img_path, obj_pths, scale, angle);
     packer.area_weight = area_weight;
     packer.out_weight = out_weight;
     
